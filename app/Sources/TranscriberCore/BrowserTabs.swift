@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 public struct BrowserTab: Equatable {
@@ -72,7 +73,11 @@ public enum BrowserTabs {
 
     /// Every open tab of a browser, via AppleScript. `[]` on any failure — a missing Automation
     /// permission, a browser that is not running, an unknown bundle ID.
-    public static func tabs(ofBrowser bundleID: String) -> [BrowserTab] {
+    public static func tabs(ofBrowser bundleID: String,
+                            isRunning: (String) -> Bool = BrowserTabs.isRunning) -> [BrowserTab] {
+        // `tell application` поднимает браузер, если он не запущен: ручной старт записи опрашивает
+        // все браузеры подряд и открывал бы Safari или Edge «из ниоткуда». Не запущен — вкладок нет.
+        guard isRunning(bundleID) else { return [] }
         guard let source = scriptSource(for: bundleID) else {
             Log.shared.warn("browser tabs: unknown browser \(bundleID)")
             return []
@@ -135,6 +140,11 @@ public enum BrowserTabs {
         let lower = t.lowercased()
         if placeholderTitles.contains(where: { $0.lowercased() == lower }) { return true }
         return lower.hasPrefix("подключение к ")
+    }
+
+    /// Запущен ли браузер — по списку процессов, без AppleScript (тот сам запускает приложение).
+    public static func isRunning(_ bundleID: String) -> Bool {
+        !NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).isEmpty
     }
 
     // MARK: - AppleScript

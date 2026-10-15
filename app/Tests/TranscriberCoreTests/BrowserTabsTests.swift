@@ -122,3 +122,9 @@ private let workHosts = ["talk.example.com", "ktalk.ru"]
     let noCallTab = [tab("https://mail.google.com/x", "Почта")]
     #expect(BrowserTabs.meetingTabState(in: noCallTab, hosts: configuredHosts) == .none)
 }
+
+@Test func tabsAreNotAskedFromABrowserThatIsNotRunning() {
+    // не запущенный браузер не опрашиваем: AppleScript его поднял бы
+    #expect(BrowserTabs.tabs(ofBrowser: "com.apple.Safari", isRunning: { _ in false }).isEmpty)
+    #expect(BrowserTabs.tabs(ofBrowser: "unknown.browser", isRunning: { _ in true }).isEmpty)
+}
