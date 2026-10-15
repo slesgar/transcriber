@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>ru.slesarev.transcriber</string>
+<key>CFBundleName</key><string>Transcriber</string>
+<key>CFBundleDisplayName</key><string>Транскрибатор</string>
+<key>CFBundleExecutable</key><string>Transcriber</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>0.1.0</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>LSMinimumSystemVersion</key><string>14.2</string>
+<key>LSUIElement</key><true/>
+<key>NSHighResolutionCapable</key><true/>
+<key>NSMicrophoneUsageDescription</key><string>Транскрибатор пишет вашу речь на встречах.</string>
+<key>NSAppleEventsUsageDescription</key><string>Транскрибатор спрашивает у браузера название встречи в открытой вкладке.</string>
+<key>NSAudioCaptureUsageDescription</key><string>Транскрибатор пишет речь собеседников из Толка и Zoom.</string>
+</dict></plist>

@@ -1,0 +1,20 @@
+{
+  "_comment": "privacy.windows: weekday 1=вс … 7=сб, время локальное HH:mm, обе границы включительно. privacy.apps — префиксы bundle id. Запись, попавшая в окно или в это приложение, уходит в «Приватные записи», а не в рабочий вольт. Толк никогда не приватный: privacy.workApps (префиксы bundle id) и privacy.workHosts (хосты звонков в браузере) перебивают и окно, и privacy.apps.",
+  "privacy": {
+    "apps": [],
+    "windows": [],
+    "workApps": [
+      "kontur.talk"
+    ],
+    "workHosts": []
+  },
+  "recon": {
+    "_comment": "разведка Accessibility-дерева приложения встречи в первые seconds секунд НЕприватной записи: снимки, лог изменений и сводка ложатся в ~/Library/Logs/transcriber-ax/<id сессии>/. enabled: false выключает целиком.",
+    "enabled": true,
+    "seconds": 180
+  },
+  "talk": {
+    "_comment": "наблюдение за сеткой участников Толка на протяжении всей НЕприватной записи: кто в звонке, у кого включён микрофон и кто говорит, строкой JSON на каждое изменение в talk.jsonl рядом со звуком сессии. enabled: false выключает.",
+    "enabled": true
+  }
+}

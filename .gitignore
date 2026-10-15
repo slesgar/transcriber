@@ -1,0 +1,19 @@
+.env
+.build/
+.venv/
+__pycache__/
+*.pcm
+*.wav
+.DS_Store
+
+build/
+
+# spike
+spike/**/.build/
+spike/whisperkit/models/
+
+# выгрузки спайка содержат реальные транскрипты встреч
+spike/whisperkit/out/
+
+# воркtree тикетов
+.worktrees/

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>ru.slesarev.transcriber.worker</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__HOME__/.local/bin/uv</string>
+    <string>run</string>
+    <string>--project</string>
+    <string>__REPO__/worker</string>
+    <string>transcriber</string>
+    <string>run</string>
+  </array>
+  <key>WorkingDirectory</key><string>__REPO__/worker</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <!-- ASR грузит машину пачками по 45-90 с: во время звонка воркер должен уступать -->
+  <key>ProcessType</key><string>Background</string>
+  <key>Nice</key><integer>10</integer>
+  <key>StandardOutPath</key><string>__HOME__/Library/Logs/transcriber-worker.log</string>
+  <key>StandardErrorPath</key><string>__HOME__/Library/Logs/transcriber-worker.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>__HOME__/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key><string>__HOME__</string>
+    <!-- модели уже в кеше ~/.cache/huggingface; без сети загрузка не должна ходить в интернет -->
+    <key>HF_HUB_OFFLINE</key><string>1</string>
+  </dict>
+</dict>
+</plist>

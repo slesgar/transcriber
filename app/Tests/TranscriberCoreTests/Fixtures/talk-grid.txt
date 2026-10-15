@@ -1,0 +1,123 @@
+                          AXGroup class='participants' selected=false focused=false frame=0,159 1470x797
+                            AXGroup class='grid-participant _animate' selected=false focused=false frame=376,216 1078x496
+                              AXGroup class='zoomed active-speaker dominant' selected=false focused=false frame=376,216 1078x496
+                                AXGroup class='wrapper' selected=false focused=false frame=376,216 1078x496
+                                  AXGroup class='video-wrapper' selected=false focused=false frame=376,216 1078x496
+                                    AXGroup class='video-and-draw-wrapper can-zoom' selected=false focused=false frame=376,216 1078x496
+                                      AXButton class='video-track global-as-button' selected=false focused=false frame=376,216 1078x496
+                                        AXGroup selected=false focused=false frame=376,216 1078x496
+                                  AXGroup selected=false focused=false frame=381,712 1078x0
+                                    AXGroup class='message-wrapper' selected=false focused=false frame=381,712 1078x0
+                                  AXGroup class='info-container' selected=false focused=false frame=381,683 150x24
+                                    AXButton class='participant-icon global-as-button' selected=false focused=false frame=376,683 5x24
+                                    AXButton title='Переговорная 5' class='participant-info-content global-as-button' selected=false focused=false frame=381,683 126x24
+                                      AXGroup class='participant-name' selected=false focused=false frame=381,687 118x17
+                                        AXStaticText value='Переговорная 5' selected=false focused=false frame=389,687 110x17
+                                  AXGroup class='actions actions_row' selected=false focused=false frame=1425,221 24x24
+                                    AXGroup class='action' selected=false focused=false frame=1425,221 24x24
+                                      AXButton class='button blue' selected=false focused=false frame=1425,221 24x24
+                                        AXGroup selected=false focused=false frame=1430,226 14x14
+                                  AXGroup class='actions _bottom' selected=false focused=false frame=1302,683 147x24
+                                    AXGroup class='action' selected=false focused=false frame=1302,683 147x24
+                                      AXButton title='или нажмите ⌥F' class='button blue' selected=false focused=false frame=1302,683 147x24
+                                        AXGroup selected=false focused=false frame=1311,688 14x14
+                                        AXGroup class='action-title' selected=false focused=false frame=1331,686 109x18
+                                          AXStaticText value='или нажмите ⌥F' selected=false focused=false frame=1331,687 109x16
+                                AXGroup class='zoom-controls-wrapper' selected=false focused=false frame=1418,216 32x496
+                                  AXGroup class='zoom-in' selected=false focused=false frame=1418,432 32x32
+                                    AXButton desc='Приблизить' class='small _only-icon _white' selected=false focused=false frame=1418,432 32x32
+                                      AXGroup selected=false focused=false frame=1454,464 0x0
+                                        AXStaticText selected=false focused=false frame=1454,464 0x0
+                                      AXGroup class='badge-slot' selected=false focused=false frame=1454,464 0x0
+                                  AXSplitter class='zoom-controls-divider' selected=false focused=false frame=1418,464 32x2
+                                  AXGroup class='zoom-out' selected=false focused=false frame=1418,464 32x32
+                                    AXButton desc='Отдалить' class='small _only-icon _white' selected=false focused=false frame=1418,464 32x32
+                                      AXGroup selected=false focused=false frame=1454,496 0x0
+                                        AXStaticText selected=false focused=false frame=1454,496 0x0
+                                      AXGroup class='badge-slot' selected=false focused=false frame=1454,496 0x0
+                            AXGroup class='grid-participant _animate' selected=false focused=false frame=376,716 212x163
+                              AXGroup selected=false focused=false frame=376,716 212x163
+                                AXGroup class='wrapper' selected=false focused=false frame=376,716 212x163
+                                  AXGroup class='video-wrapper' selected=false focused=false frame=376,716 212x163
+                                    AXGroup class='video-and-draw-wrapper can-zoom' selected=false focused=false frame=376,716 212x163
+                                      AXButton class='video-track global-as-button cover' selected=false focused=false frame=376,716 212x163
+                                        AXGroup selected=false focused=false frame=376,716 212x163
+                                  AXGroup selected=false focused=false frame=588,879 0x0
+                                    AXGroup class='message-wrapper' selected=false focused=false frame=588,879 0x0
+                                  AXGroup class='info-container' selected=false focused=false frame=381,850 154x24
+                                    AXButton class='participant-icon mute global-as-button' selected=false focused=false frame=381,850 24x24
+                                    AXButton title='Пётр Кузьмин' class='participant-info-content global-as-button' selected=false focused=false frame=405,850 130x24
+                                      AXGroup class='participant-name' selected=false focused=false frame=405,854 122x17
+                                        AXStaticText value='Пётр Кузьмин' selected=false focused=false frame=413,854 114x17
+                                  AXGroup class='actions actions_row' selected=false focused=false frame=559,721 24x24
+                                    AXGroup class='action' selected=false focused=false frame=559,721 24x24
+                                      AXButton class='button blue' selected=false focused=false frame=559,721 24x24
+                                        AXGroup selected=false focused=false frame=564,726 14x14
+                            AXGroup class='grid-participant _animate' selected=false focused=false frame=592,716 212x163
+                              AXGroup selected=false focused=false frame=592,716 212x163
+                                AXGroup class='wrapper' selected=false focused=false frame=592,716 212x163
+                                  AXGroup class='video-wrapper' selected=false focused=false frame=592,716 212x163
+                                    AXGroup class='video-and-draw-wrapper can-zoom' selected=false focused=false frame=592,716 212x163
+                                      AXButton class='video-track global-as-button cover' selected=false focused=false frame=592,716 212x163
+                                        AXGroup selected=false focused=false frame=592,716 212x163
+                                  AXGroup selected=false focused=false frame=804,879 0x0
+                                    AXGroup class='message-wrapper' selected=false focused=false frame=804,879 0x0
+                                  AXGroup class='info-container' selected=false focused=false frame=597,850 149x24
+                                    AXButton class='participant-icon mute global-as-button' selected=false focused=false frame=597,850 24x24
+                                    AXButton title='Сергей Орлов' class='participant-info-content global-as-button' selected=false focused=false frame=621,850 125x24
+                                      AXGroup class='participant-name' selected=false focused=false frame=621,854 117x17
+                                        AXStaticText value='Сергей Орлов' selected=false focused=false frame=629,854 109x17
+                                  AXGroup class='actions actions_row' selected=false focused=false frame=775,721 24x24
+                                    AXGroup class='action' selected=false focused=false frame=775,721 24x24
+                                      AXButton class='button blue' selected=false focused=false frame=775,721 24x24
+                                        AXGroup selected=false focused=false frame=780,726 14x14
+                            AXGroup class='grid-participant _animate' selected=false focused=false frame=808,716 212x163
+                              AXGroup selected=false focused=false frame=808,716 212x163
+                                AXGroup class='wrapper' selected=false focused=false frame=808,716 212x163
+                                  AXGroup class='video-wrapper' selected=false focused=false frame=808,716 212x163
+                                    AXGroup class='video-and-draw-wrapper can-zoom' selected=false focused=false frame=808,716 212x163
+                                      AXButton class='video-track global-as-button' selected=false focused=false frame=808,716 212x163
+                                        AXGroup selected=false focused=false frame=808,716 212x163
+                                      AXGroup selected=false focused=false frame=808,716 212x163
+                                        AXGroup class='canvas-container view-mode' selected=false focused=false frame=808,716 212x163
+                                          AXGroup class='canvas-container' selected=false focused=false frame=808,716 212x163
+                                            AXImage class='upper-canvas' selected=false focused=false frame=808,716 212x163
+                                  AXGroup selected=false focused=false frame=1020,879 0x0
+                                    AXGroup class='message-wrapper' selected=false focused=false frame=1020,879 0x0
+                                  AXGroup class='info-container' selected=false focused=false frame=813,850 165x24
+                                    AXButton class='participant-icon mute global-as-button' selected=false focused=false frame=813,850 24x24
+                                    AXButton title='Елена Волкова' class='participant-info-content global-as-button' selected=false focused=false frame=837,850 141x24
+                                      AXGroup class='participant-name' selected=false focused=false frame=837,854 133x17
+                                        AXStaticText value='Елена Волкова' selected=false focused=false frame=845,854 125x17
+                                  AXGroup class='actions actions_row' selected=false focused=false frame=991,721 24x24
+                                    AXGroup class='action' selected=false focused=false frame=991,721 24x24
+                                      AXButton class='button blue' selected=false focused=false frame=991,721 24x24
+                                        AXGroup selected=false focused=false frame=996,726 14x14
+                            AXGroup class='grid-participant' selected=false focused=false frame=1024,716 212x163
+                              AXGroup selected=false focused=false frame=1024,716 212x163
+                                AXGroup class='wrapper' selected=false focused=false frame=1024,716 212x163
+                                  AXGroup class='video-wrapper' selected=false focused=false frame=1024,716 212x163
+                                    AXGroup class='video-and-draw-wrapper can-zoom' selected=false focused=false frame=1024,716 212x163
+                                      AXButton class='video-track global-as-button cover' selected=false focused=false frame=1024,716 212x163
+                                        AXGroup selected=false focused=false frame=1024,716 212x163
+                                  AXGroup selected=false focused=false frame=1236,879 0x0
+                                    AXGroup class='message-wrapper' selected=false focused=false frame=1236,879 0x0
+                                  AXGroup class='info-container' selected=false focused=false frame=1029,850 155x24
+                                    AXButton class='participant-icon mute global-as-button' selected=false focused=false frame=1029,850 24x24
+                                    AXButton title='Дмитрий Лебедев' class='participant-info-content global-as-button' selected=false focused=false frame=1053,850 131x24
+                                      AXGroup class='participant-name' selected=false focused=false frame=1053,854 123x17
+                                        AXStaticText value='Дмитрий Лебедев' selected=false focused=false frame=1061,854 115x17
+                                  AXGroup class='actions actions_row' selected=false focused=false frame=1207,721 24x24
+                                    AXGroup class='action' selected=false focused=false frame=1207,721 24x24
+                                      AXButton class='button blue' selected=false focused=false frame=1207,721 24x24
+                                        AXGroup selected=false focused=false frame=1212,726 14x14
+                            AXGroup class='grid-participant _animate' selected=false focused=false frame=1240,716 212x163
+                              AXGroup class='pagination-info' selected=false focused=false frame=1240,716 212x163
+                                AXButton title='Листать назад' class='pagination-control-pre pagination-disabled global-as-button' selected=false focused=false frame=1240,716 106x163
+                                  AXGroup class='pagination-control-background' selected=false focused=false frame=1240,716 106x163
+                                  AXGroup desc='Листать назад' selected=false focused=false frame=1250,753 52x89
+                                AXButton title='Листать вперёд' class='pagination-control-next global-as-button' selected=false focused=false frame=1346,716 106x163
+                                  AXGroup class='pagination-control-background' selected=false focused=false frame=1346,716 106x163
+                                  AXGroup desc='Листать вперёд' selected=false focused=false frame=1390,753 52x89
+                                AXGroup class='pagination-container' selected=false focused=false frame=1264,857 164x6
+                            AXGroup selected=false focused=false frame=0,159 1470x1
