@@ -198,7 +198,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// `pollQueue` only.
     private func logMicHolders(_ processes: [AudioProcess]) {
         let holders = Set(processes
-            .filter { $0.isRunningInput && !$0.bundleID.hasPrefix(AudioProcesses.ownBundleID) }
+            .filter { $0.isRunningInput && !AudioProcesses.isOwn($0.bundleID) }
             .map { $0.bundleID.isEmpty ? "pid:\($0.pid)" : $0.bundleID })
         guard holders != lastMicHolders else { return }
         lastMicHolders = holders

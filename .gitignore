@@ -20,3 +20,9 @@ spike/whisperkit/out/
 
 # значения этой установки для leak-check (не публикуются)
 instance/
+
+# рабочие документы мастерской (STATE, соседи, планы, спеки) — локально, не публикуются (с 16.10.2026)
+docs/product/
+docs/plans/
+docs/specs/
+docs/superpowers/
