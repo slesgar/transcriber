@@ -63,7 +63,7 @@ public enum SettingsError: LocalizedError {
 public enum SettingsStore {
     static let defaultOwnerName = "Owner"
     static let defaultOwnerTalkName = ""
-    static let defaultVaultRoot = "~/Documents/Obsidian Vault"
+    static let defaultVaultRoot = "~/Documents/Vault"
     static let defaultPrivateDir = "~/Documents/Приватные записи"
 
     public static func load(appConfig: URL = AppPaths.appConfig,

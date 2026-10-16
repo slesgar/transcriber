@@ -112,8 +112,8 @@ def make_session(sessions_dir: Path, session_id: str = "2026-09-15-1430", app: s
 @pytest.fixture
 def vault(tmp_path: Path) -> Path:
     root = tmp_path / "vault"
-    (root / "Memory/50 · Raw/Local").mkdir(parents=True)
-    (root / "Memory/30 · Meetings").mkdir(parents=True)
+    (root / "Raw/Transcripts").mkdir(parents=True)
+    (root / "Meetings").mkdir(parents=True)
     return root
 
 

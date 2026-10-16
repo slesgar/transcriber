@@ -7,9 +7,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_SRC="$ROOT/app"
 OUT="$ROOT/build/Transcriber.app"
 DEST="$HOME/Applications/Transcriber.app"
-LABEL=ru.slesarev.transcriber.app
 IDENTITY="Transcriber Dev"
-DATA_DIR="${TRANSCRIBER_DATA:-$HOME/Library/Application Support/Transcriber}"
+source "$ROOT/scripts/install-lib.sh"   # DATA_DIR, LABEL_PREFIX, render_template
+LABEL="$LABEL_PREFIX.app"
 SESSIONS="$DATA_DIR/sessions"
 FORCE=0
 for arg in "$@"; do
@@ -36,7 +36,7 @@ BIN="$APP_SRC/.build/release/Transcriber"
 rm -rf "$OUT"
 mkdir -p "$OUT/Contents/MacOS" "$OUT/Contents/Resources"
 cp "$BIN" "$OUT/Contents/MacOS/Transcriber"
-cp "$APP_SRC/Resources/Info.plist" "$OUT/Contents/Info.plist"
+render_template "$APP_SRC/Resources/Info.plist" "$OUT/Contents/Info.plist"   # bundle id = LABEL_PREFIX
 codesign --force --sign "$IDENTITY" --timestamp=none "$OUT" || { echo "codesign failed (a keychain dialog for the Transcriber Dev key may be waiting)" >&2; exit 1; }
 codesign --verify --verbose=2 "$OUT" || { echo "codesign verify failed" >&2; exit 1; }
 
@@ -45,9 +45,9 @@ pkill -x Transcriber 2>/dev/null || true
 mkdir -p "$HOME/Applications" "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
 rm -rf "$DEST"
 cp -R "$OUT" "$DEST"
-sed -e "s|__HOME__|$HOME|g" -e "s|__REPO__|$ROOT|g" "$ROOT/launchd/$LABEL.plist" > "$HOME/Library/LaunchAgents/$LABEL.plist"
+render_template "$ROOT/launchd/app.plist" "$HOME/Library/LaunchAgents/$LABEL.plist"
 for i in 1 2 3 4 5; do
   launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/$LABEL.plist" && break
   sleep 1
 done
-echo "installed $DEST; agent $LABEL; log ~/Library/Logs/transcriber-app.log"
+echo "installed $DEST (bundle id $LABEL_PREFIX); agent $LABEL; log ~/Library/Logs/transcriber-app.log"

@@ -23,13 +23,14 @@ DATA_DIR = Path(os.environ.get("TRANSCRIBER_DATA") or DEFAULT_DATA_DIR).expandus
 
 @dataclass
 class Config:
-    vault_root: Path = Path("~/Documents/Obsidian Vault").expanduser()
+    vault_root: Path = Path("~/Documents/Vault").expanduser()
     private_dir: Path = Path("~/Documents/Приватные записи").expanduser()   # приватные записи мимо вольта
     sessions_dir: Path = field(default_factory=lambda: DATA_DIR / "sessions")
     bench_dir: Path = field(default_factory=lambda: DATA_DIR / "bench")   # эталонные записи стенда качества и прогоны по ним
-    raw_subdir: str = "Memory/50 · Raw/Local"
-    meetings_subdir: str = "Memory/30 · Meetings"
-    reference_subdir: str = "Memory/50 · Raw/TalkBot"   # транскрипты бота Толка — эталон стенда bench-ref
+    # папки внутри вольта; раскладку конкретного вольта задаёт config.yaml установки
+    raw_subdir: str = "Raw/Transcripts"
+    meetings_subdir: str = "Meetings"
+    reference_subdir: str = "Raw/TalkBot"   # транскрипты бота Толка — эталон стенда bench-ref
     # судья контекста для bench-ref --judge: модель Claude (ключ ANTHROPIC_API_KEY в .env каталога данных)
     judge_model: str = "claude-opus-5-5"
     judge_timeout_s: int = 300

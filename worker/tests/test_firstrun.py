@@ -52,3 +52,8 @@ def test_cli_init_yes(tmp_path, monkeypatch, capsys):
 
 def test_quality_log_header_forbids_names_and_topics():
     assert "без имён" in QUALITY_LOG_HEADER and "- HH:MM — " in QUALITY_LOG_HEADER
+
+
+def test_answers_defaults_are_neutral():
+    a = Answers()
+    assert a.owner_name == "Owner" and a.vault_root == "~/Documents/Vault"

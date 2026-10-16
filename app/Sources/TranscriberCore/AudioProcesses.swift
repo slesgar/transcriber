@@ -51,7 +51,14 @@ enum CoreAudioProps {
 
 public enum AudioProcesses {
     /// Our own bundle id — excluded from mic-holder diagnostics, matched for the teardown check.
-    public static let ownBundleID = "ru.slesarev.transcriber"
+    /// Bundle id задаёт установщик (LABEL_PREFIX в scripts/install-lib.sh); без бандла (swift run, тесты) — нейтральный.
+    public static let ownBundleID = Bundle.main.bundleIdentifier ?? "local.transcriber"
+
+    /// Our process or one of its helpers (`<own>.*`); a bare prefix match would also catch
+    /// unrelated apps of the same vendor when the prefix is short (`com.acme`).
+    public static func isOwn(_ bundleID: String, own: String = ownBundleID) -> Bool {
+        bundleID == own || bundleID.hasPrefix(own + ".")
+    }
 
     /// Every process Core Audio knows about, with whether it currently records from an input device.
     public static func list() -> [AudioProcess] {
@@ -71,7 +78,7 @@ public enum AudioProcesses {
     /// signature of a tap or aggregate device that outlived its session.
     public static func selfIsRunningInput() -> Bool {
         let me = getpid()
-        return list().contains { ($0.pid == me || $0.bundleID.hasPrefix(ownBundleID)) && $0.isRunningInput }
+        return list().contains { ($0.pid == me || isOwn($0.bundleID)) && $0.isRunningInput }
     }
 
     /// Core Audio object for our own process, used to exclude ourselves from the tap.

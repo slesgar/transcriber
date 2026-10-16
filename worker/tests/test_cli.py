@@ -382,7 +382,7 @@ def test_refinalize_puts_the_talk_participants_into_the_stub(vault, tmp_path):
     _talk_session(sessions, vault)
     cfg = Config(vault_root=vault, sessions_dir=sessions)
     cli.refinalize(cfg, "2026-09-15-1430")
-    note = vault / "Memory/30 · Meetings/MTG-2026-09-15 1430 · Встреча.md"
+    note = vault / "Meetings/MTG-2026-09-15 1430 · Встреча.md"
     assert f"participants: [Owner, Иван Сидоров, {ПЁТР}, {КОМНАТА}]" in note.read_text()
 
 
@@ -391,8 +391,8 @@ def _session_with_audio(sessions: Path, vault: Path) -> tuple[Path, Path, Path]:
     d = make_session(sessions)
     (d / "mic.pcm").write_bytes(to_pcm_bytes(np.concatenate([tone(1.0, 440), silence(5.0)])))
     (d / "sys.pcm").write_bytes(to_pcm_bytes(np.concatenate([silence(2.0), tone(1.5, 880), silence(2.0)])))
-    raw = vault / "Memory/50 · Raw/Local/Local-2026-09-15-1430-Старое-имя.md"
-    note = vault / "Memory/30 · Meetings/MTG-2026-09-15 1430 · Старое имя.md"
+    raw = vault / "Raw/Transcripts/Local-2026-09-15-1430-Старое-имя.md"
+    note = vault / "Meetings/MTG-2026-09-15 1430 · Старое имя.md"
     raw.write_text("прошлый прогон")
     note.write_text("заглушка")
     (d / "state.json").write_text(json.dumps({

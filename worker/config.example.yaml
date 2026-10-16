@@ -1,11 +1,14 @@
 # Локальный транскрибатор — настройки воркера. Пути с ~ разворачиваются.
 # Это пример; рабочая копия — config.yaml в каталоге данных, её создаёт `transcriber init`.
-vault_root: ~/Documents/Obsidian Vault
+vault_root: ~/Documents/Vault
+# Папки внутри вольта: Raw-транскрипты и заметки встреч
+raw_subdir: Raw/Transcripts
+meetings_subdir: Meetings
 # Приватные записи (в meta.json стоит private: true) идут сюда, а не в вольт: ни транскрипта,
 # ни заметки, ни голоса в библиотеке. Каталог и файлы — только для владельца (0700/0600).
 private_dir: ~/Documents/Приватные записи
 # Транскрипты корпоративного бота Толка (заметки бота Толка) в вольте — эталон для `transcriber bench-ref`.
-reference_subdir: Memory/50 · Raw/TalkBot
+reference_subdir: Raw/TalkBot
 # Судья контекста для `bench-ref --judge`: модель Claude; ключ — ANTHROPIC_API_KEY в .env каталога данных.
 judge_model: claude-opus-5-5
 judge_chunk_words: 1200
@@ -75,7 +78,7 @@ echo_strong_similarity: 0.8
 echo_suppress: true
 echo_beta: 2.0           # запас на недооценку тракта; ниже 1.5 эхо остаётся слышным для VAD
 echo_beta_loud: 0        # запас при громких динамиках (усиление тракта 0.4), 0 — выключено: на стенде 14.10 и 3.0, и адаптивный
-                         # резали речь владельца на обычной записи (docs/specs/2026-10-14-echo-loud.md); опыт — --set echo_beta_loud=3
+                         # резали речь владельца на обычной записи; опыт — --set echo_beta_loud=3
 echo_floor: 0.05         # глубже корзину не давим — останется дыра вместо звука
 # Остаток эха по звуку: если от реплики микрофона подавитель оставил меньше этой доли энергии
 # и она почти целиком идёт поверх речи динамиков — это не владелец, а недодавленное эхо, на

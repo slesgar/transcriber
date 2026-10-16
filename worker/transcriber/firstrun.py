@@ -43,7 +43,7 @@ QUALITY_LOG_HEADER = """# Журнал качества
 class Answers:
     owner_name: str = "Owner"
     owner_talk_name: str = ""
-    vault_root: str = "~/Documents/Obsidian Vault"
+    vault_root: str = "~/Documents/Vault"
     private_dir: str = "~/Documents/Приватные записи"
     meeting_hosts: list[str] = field(default_factory=list)
 
