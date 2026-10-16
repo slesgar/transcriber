@@ -40,7 +40,7 @@ final class PromptPanel {
     /// the first word is recorded, that this one is not going into the work vault.
     static func privateMeeting() -> Spec {
         Spec(symbol: "lock.circle", tint: .systemPurple, title: "Приватная запись",
-             subtitle: "Транскрипт уйдёт в «Приватные записи», не в рабочий вольт.",
+             subtitle: "Транскрипт уйдёт в папку приватных записей, не в рабочий вольт.",
              primary: "Записать", secondary: "Не сейчас", timeout: PromptTimeouts.privateMeeting)
     }
 

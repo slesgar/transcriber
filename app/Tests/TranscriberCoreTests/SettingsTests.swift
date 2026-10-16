@@ -21,7 +21,7 @@ private func tempDir() -> URL {
 }
 
 @Test func privacyEditorReplacesOnlyPrivacyFields() {
-    let text = #"{"_comment": "c", "privacy": {"apps": ["us.zoom"], "windows": [], "workApps": ["kontur.talk"], "workHosts": []}, "recon": {"enabled": true, "seconds": 180}}"#
+    let text = #"{"_comment": "c", "privacy": {"apps": ["com.example.chat"], "windows": [], "workApps": ["kontur.talk"], "workHosts": []}, "recon": {"enabled": true, "seconds": 180}}"#
     let out = SettingsStore.settingPrivacy(text, windows: [PrivateWindow(weekday: 3, from: "12:00", to: "12:50")], apps: [], workHosts: ["talk.example.com"])!
     let obj = try! JSONSerialization.jsonObject(with: out.data(using: .utf8)!) as! [String: Any]
     #expect((obj["recon"] as! [String: Any])["seconds"] as! Int == 180); #expect(obj["_comment"] as! String == "c")
@@ -42,11 +42,11 @@ private func tempDir() -> URL {
                      workHosts: [], privateWindows: [], privateApps: [])
     #expect(s.validationErrors().isEmpty)
     s.ownerName = "  "; s.vaultRoot = ""; s.privateDir = ""
-    #expect(s.validationErrors() == ["Имя владельца", "Вольт (путь)", "Приватные записи (путь)"])
+    #expect(s.validationErrors() == ["Имя владельца", "Вольт (путь)", "Папка приватных записей"])
 }
 
 @Test func listFieldSplitsOnCommasAndWhitespace() {
-    #expect(Settings.splitList(" talk.example.com,meet.example.com  us.zoom ,, \n") == ["talk.example.com", "meet.example.com", "us.zoom"])
+    #expect(Settings.splitList(" talk.example.com,meet.example.com  com.example.chat ,, \n") == ["talk.example.com", "meet.example.com", "com.example.chat"])
     #expect(Settings.splitList("  ").isEmpty)
 }
 
@@ -58,7 +58,7 @@ private func tempDir() -> URL {
 @Test func saveThenLoadRoundTrips() throws {
     let dir = tempDir()
     let s = Settings(ownerName: "Анна", ownerTalkName: "Анна Петрова", vaultRoot: "~/V", privateDir: "~/P",
-                     workHosts: ["talk.example.com"], privateWindows: [PrivateWindow(weekday: 3, from: "12:00", to: "12:50")], privateApps: ["us.zoom"])
+                     workHosts: ["talk.example.com"], privateWindows: [PrivateWindow(weekday: 3, from: "12:00", to: "12:50")], privateApps: ["com.example.chat"])
     try SettingsStore.save(s, appConfig: dir.appendingPathComponent("app-config.json"), workerConfig: dir.appendingPathComponent("config.yaml"))
     #expect(SettingsStore.load(appConfig: dir.appendingPathComponent("app-config.json"), workerConfig: dir.appendingPathComponent("config.yaml")) == s)
     #expect(!(try String(contentsOf: dir.appendingPathComponent("config.yaml")).contains("owner_thoughts_heading")))

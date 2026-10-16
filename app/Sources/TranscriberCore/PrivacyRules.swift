@@ -148,7 +148,7 @@ public struct PrivacyRules: Codable, Equatable {
         let payload: [String: Any] = [
             "_comment": "privacy.windows: weekday 1=вс … 7=сб, время локальное HH:mm, обе границы включительно. "
                 + "privacy.apps — префиксы bundle id. Запись, попавшая в окно или в это приложение, уходит в "
-                + "«Приватные записи», а не в рабочий вольт. Толк никогда не приватный: privacy.workApps "
+                + "папку приватных записей (private_dir), а не в рабочий вольт. Толк никогда не приватный: privacy.workApps "
                 + "(префиксы bundle id) и privacy.workHosts (хосты звонков в браузере) перебивают и окно, "
                 + "и privacy.apps.",
             "privacy": privacy,

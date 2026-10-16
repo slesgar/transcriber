@@ -27,7 +27,7 @@ public struct Settings: Equatable {
     /// owner to attribute lines to, and an empty path would send transcripts — private ones
     /// included — to a relative directory.
     public func validationErrors() -> [String] {
-        [("Имя владельца", ownerName), ("Вольт (путь)", vaultRoot), ("Приватные записи (путь)", privateDir)]
+        [("Имя владельца", ownerName), ("Вольт (путь)", vaultRoot), ("Папка приватных записей", privateDir)]
             .filter { $0.1.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .map(\.0)
     }

@@ -45,7 +45,7 @@ final class SettingsWindow: NSWindowController {
             field.widthAnchor.constraint(greaterThanOrEqualToConstant: 380).isActive = true
         }
         workHosts.placeholderString = "talk.example.com, meet.example.com"
-        privateApps.placeholderString = "us.zoom"
+        privateApps.placeholderString = "com.example.chat"
 
         windowsView.isRichText = false
         windowsView.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
@@ -61,7 +61,7 @@ final class SettingsWindow: NSWindowController {
             [label("Имя владельца"), ownerName],
             [label("Имя в Толке"), ownerTalkName],
             [label("Вольт (путь)"), vaultRoot],
-            [label("Приватные записи (путь)"), privateDir],
+            [label("Папка приватных записей"), privateDir],
             [label("Хосты встреч (через запятую)"), workHosts],
             [label("Приватные приложения (bundle id через запятую)"), privateApps],
             [label("Окна приватности (по строке: день HH:mm-HH:mm, 1=вс … 7=сб)"), scroll],
