@@ -40,10 +40,10 @@ def test_write_raw_and_stub(vault):
     cfg = Config(vault_root=vault)
     s = Session(vault / "s", meta(), State())
     p = write_raw(cfg, s, status_text="идёт запись")
-    assert p == vault / "Memory/50 · Raw/Local/Local-2026-09-15-1430-Синк-по-CDP-параметры.md"
+    assert p == vault / "Raw/Transcripts/Local-2026-09-15-1430-Синк-по-CDP-параметры.md"
     assert p.exists() and s.state.raw_path == str(p)
     n = ensure_stub(cfg, s)
-    assert n == vault / "Memory/30 · Meetings/MTG-2026-09-15 1430 · Синк по CDP параметры.md"
+    assert n == vault / "Meetings/MTG-2026-09-15 1430 · Синк по CDP параметры.md"
     body = n.read_text()
     assert "id: MTG-2026-09-15-1430\n" in body
     assert "participants: [Owner, Иван Сидоров, Мария Иванова]\n" in body
@@ -81,8 +81,8 @@ def test_paths_are_pinned_after_first_write(vault):
     p2 = write_raw(cfg, s, status_text="идёт запись")
     n2 = ensure_stub(cfg, s)
     assert p2 == p1 and n2 == n1
-    assert len(list((vault / "Memory/50 · Raw/Local").iterdir())) == 1
-    assert len(list((vault / "Memory/30 · Meetings").iterdir())) == 1
+    assert len(list((vault / "Raw/Transcripts").iterdir())) == 1
+    assert len(list((vault / "Meetings").iterdir())) == 1
 
 
 def test_n_speakers_counts_sys_speakers_without_embeddings(vault):

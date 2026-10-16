@@ -108,7 +108,7 @@ def test_find_reference_matches_date_start_and_title(tmp_path):
 
 def _session_with_raw(cfg: Config, vault: Path, session_id: str = "2026-09-15-1430", raw_text: str = LOCAL) -> Path:
     d = make_session(cfg.sessions_dir, session_id, title="Еженедельный синк")
-    raw = vault / "Memory/50 · Raw/Local" / f"Local-{session_id}-Еженедельный-синк.md"
+    raw = vault / "Raw/Transcripts" / f"Local-{session_id}-Еженедельный-синк.md"
     raw.write_text(raw_text)
     s = Session.load(d)
     s.state = State(status="finalized", raw_path=str(raw))

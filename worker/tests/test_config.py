@@ -13,7 +13,7 @@ def test_defaults_when_no_yaml(tmp_path):
     assert cfg.min_silence_ms == 700
     assert cfg.max_utterance_s == 30.0
     assert cfg.glossary == []
-    assert cfg.vault_root.name == "Obsidian Vault"
+    assert cfg.vault_root.name == "Vault"
 
 
 def test_yaml_and_glossary_override(tmp_path):
@@ -78,7 +78,9 @@ def test_owner_defaults_are_neutral():
     cfg = Config()
     assert cfg.owner_name == "Owner" and cfg.owner_thoughts_heading == "## Мысли владельца"
     assert cfg.owner_talk_name == "" and cfg.talk_shared_names == []
-    assert cfg.vault_root == Path("~/Documents/Obsidian Vault").expanduser()
+    assert cfg.vault_root == Path("~/Documents/Vault").expanduser()
+    # раскладка вольта владельца живёт в его config.yaml, в коде — нейтральная
+    assert (cfg.raw_subdir, cfg.meetings_subdir, cfg.reference_subdir) == ("Raw/Transcripts", "Meetings", "Raw/TalkBot")
 
 
 def test_example_yaml_is_neutral():

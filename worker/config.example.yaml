@@ -1,11 +1,14 @@
 # Локальный транскрибатор — настройки воркера. Пути с ~ разворачиваются.
 # Это пример; рабочая копия — config.yaml в каталоге данных, её создаёт `transcriber init`.
-vault_root: ~/Documents/Obsidian Vault
+vault_root: ~/Documents/Vault
+# Папки внутри вольта: Raw-транскрипты и заметки встреч
+raw_subdir: Raw/Transcripts
+meetings_subdir: Meetings
 # Приватные записи (в meta.json стоит private: true) идут сюда, а не в вольт: ни транскрипта,
 # ни заметки, ни голоса в библиотеке. Каталог и файлы — только для владельца (0700/0600).
 private_dir: ~/Documents/Приватные записи
 # Транскрипты корпоративного бота Толка (заметки бота Толка) в вольте — эталон для `transcriber bench-ref`.
-reference_subdir: Memory/50 · Raw/TalkBot
+reference_subdir: Raw/TalkBot
 # Судья контекста для `bench-ref --judge`: модель Claude; ключ — ANTHROPIC_API_KEY в .env каталога данных.
 judge_model: claude-opus-5-5
 judge_chunk_words: 1200

@@ -17,3 +17,6 @@ spike/whisperkit/out/
 
 # воркtree тикетов
 .worktrees/
+
+# значения этой установки для leak-check (не публикуются)
+instance/

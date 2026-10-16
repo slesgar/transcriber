@@ -96,7 +96,7 @@ def test_write_raw_of_a_continuation_produces_one_transcript_with_a_break_marker
     assert "— запись прервана 00:09, продолжение 00:20 —" in text
     assert "2026-09-15-1400 Speaker 1 10" in text and "2026-09-15-1430 Speaker 1 10" in text
     assert "частей записи: 2" in text
-    assert len(list((vault / "Memory/50 · Raw/Local").glob("*.md"))) == 1
+    assert len(list((vault / "Raw/Transcripts").glob("*.md"))) == 1
 
 
 def test_daemon_attaches_a_restart_on_first_sight(vault, tmp_path):
@@ -111,7 +111,7 @@ def test_daemon_attaches_a_restart_on_first_sight(vault, tmp_path):
     dm.once()
     st = Session.load(new.dir).state
     assert st.continues == "2026-09-15-1400" and st.raw_path == prev.state.raw_path
-    assert len(list((vault / "Memory/30 · Meetings").glob("*.md"))) == 1          # одна заглушка на встречу
+    assert len(list((vault / "Meetings").glob("*.md"))) == 1          # одна заглушка на встречу
 
 
 def test_a_corrupt_neighbour_does_not_block_a_new_recording(vault, tmp_path, caplog):

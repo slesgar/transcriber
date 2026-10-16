@@ -81,7 +81,7 @@ private func tempDir() -> URL {
     let dir = tempDir()
     let s = SettingsStore.load(appConfig: dir.appendingPathComponent("app-config.json"),
                                workerConfig: dir.appendingPathComponent("config.yaml"))
-    #expect(s == Settings(ownerName: "Owner", ownerTalkName: "", vaultRoot: "~/Documents/Obsidian Vault",
+    #expect(s == Settings(ownerName: "Owner", ownerTalkName: "", vaultRoot: "~/Documents/Vault",
                           privateDir: "~/Documents/Приватные записи", workHosts: [], privateWindows: [], privateApps: []))
 }
 
@@ -89,10 +89,10 @@ private func tempDir() -> URL {
     let dir = tempDir()
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     let yaml = dir.appendingPathComponent("config.yaml")
-    try "vault_root: ~/Documents/Obsidian Vault\nowner_name: Owner   # кто\nowner_talk_name: \"Анна Петрова\"\n"
+    try "vault_root: ~/Notes/Vault\nowner_name: Owner   # кто\nowner_talk_name: \"Анна Петрова\"\n"
         .write(to: yaml, atomically: true, encoding: .utf8)
     let s = SettingsStore.load(appConfig: dir.appendingPathComponent("app-config.json"), workerConfig: yaml)
-    #expect(s.vaultRoot == "~/Documents/Obsidian Vault")
+    #expect(s.vaultRoot == "~/Notes/Vault")
     #expect(s.ownerName == "Owner")
     #expect(s.ownerTalkName == "Анна Петрова")
 }

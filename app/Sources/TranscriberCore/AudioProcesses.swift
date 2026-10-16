@@ -51,7 +51,8 @@ enum CoreAudioProps {
 
 public enum AudioProcesses {
     /// Our own bundle id — excluded from mic-holder diagnostics, matched for the teardown check.
-    public static let ownBundleID = "ru.slesarev.transcriber"
+    /// Bundle id задаёт установщик (LABEL_PREFIX в scripts/install-lib.sh); без бандла (swift run, тесты) — нейтральный.
+    public static let ownBundleID = Bundle.main.bundleIdentifier ?? "local.transcriber"
 
     /// Every process Core Audio knows about, with whether it currently records from an input device.
     public static func list() -> [AudioProcess] {

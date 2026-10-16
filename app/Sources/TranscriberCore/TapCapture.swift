@@ -57,7 +57,7 @@ public final class TapCapture {
 
         let aggDesc: [String: Any] = [
             kAudioAggregateDeviceNameKey as String: "transcriber-agg",
-            kAudioAggregateDeviceUIDKey as String: "ru.slesarev.transcriber.agg",
+            kAudioAggregateDeviceUIDKey as String: AudioProcesses.ownBundleID + ".agg",
             kAudioAggregateDeviceIsPrivateKey as String: true,
             kAudioAggregateDeviceIsStackedKey as String: false,
             kAudioAggregateDeviceTapAutoStartKey as String: true,
