@@ -24,7 +24,7 @@ DATA_DIR = Path(os.environ.get("TRANSCRIBER_DATA") or DEFAULT_DATA_DIR).expandus
 @dataclass
 class Config:
     vault_root: Path = Path("~/Documents/Vault").expanduser()
-    private_dir: Path = Path("~/Documents/Приватные записи").expanduser()   # приватные записи мимо вольта
+    private_dir: Path = Path("~/Documents/Transcriber Private").expanduser()   # приватные записи мимо вольта
     sessions_dir: Path = field(default_factory=lambda: DATA_DIR / "sessions")
     bench_dir: Path = field(default_factory=lambda: DATA_DIR / "bench")   # эталонные записи стенда качества и прогоны по ним
     # папки внутри вольта; раскладку конкретного вольта задаёт config.yaml установки

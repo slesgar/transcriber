@@ -128,7 +128,7 @@ def test_voice_settings_have_defaults_and_expand_paths(tmp_path):
 
 def test_private_dir_has_a_default_and_is_expanded(tmp_path):
     cfg = load_config(yaml_path=tmp_path / "missing.yaml", glossary_path=tmp_path / "missing.txt")
-    assert cfg.private_dir == Path("~/Documents/Приватные записи").expanduser()
+    assert cfg.private_dir == Path("~/Documents/Transcriber Private").expanduser()
     assert cfg.private_dir.is_absolute()
 
     (tmp_path / "c.yaml").write_text("private_dir: ~/Приватное\n")

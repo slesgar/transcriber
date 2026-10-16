@@ -57,3 +57,4 @@ def test_quality_log_header_forbids_names_and_topics():
 def test_answers_defaults_are_neutral():
     a = Answers()
     assert a.owner_name == "Owner" and a.vault_root == "~/Documents/Vault"
+    assert a.private_dir == "~/Documents/Transcriber Private"

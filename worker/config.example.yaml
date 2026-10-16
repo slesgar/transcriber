@@ -6,7 +6,7 @@ raw_subdir: Raw/Transcripts
 meetings_subdir: Meetings
 # Приватные записи (в meta.json стоит private: true) идут сюда, а не в вольт: ни транскрипта,
 # ни заметки, ни голоса в библиотеке. Каталог и файлы — только для владельца (0700/0600).
-private_dir: ~/Documents/Приватные записи
+private_dir: ~/Documents/Transcriber Private
 # Транскрипты корпоративного бота Толка (заметки бота Толка) в вольте — эталон для `transcriber bench-ref`.
 reference_subdir: Raw/TalkBot
 # Судья контекста для `bench-ref --judge`: модель Claude; ключ — ANTHROPIC_API_KEY в .env каталога данных.

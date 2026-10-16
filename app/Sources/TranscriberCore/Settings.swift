@@ -64,7 +64,7 @@ public enum SettingsStore {
     static let defaultOwnerName = "Owner"
     static let defaultOwnerTalkName = ""
     static let defaultVaultRoot = "~/Documents/Vault"
-    static let defaultPrivateDir = "~/Documents/Приватные записи"
+    static let defaultPrivateDir = "~/Documents/Transcriber Private"
 
     public static func load(appConfig: URL = AppPaths.appConfig,
                             workerConfig: URL = AppPaths.workerConfig) -> Settings {
