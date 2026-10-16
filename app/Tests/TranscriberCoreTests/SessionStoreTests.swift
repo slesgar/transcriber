@@ -30,7 +30,7 @@ private let noon = Calendar.current.date(from: DateComponents(year: 2026, month:
 @Test func privateFlagOnlyWhenSet() throws {
     let store = SessionStore(root: try tempRoot())
     let open = try store.create(app: "kontur.talk", title: "Синк", participants: [], now: noon)
-    let hidden = try store.create(app: "us.zoom", title: "", participants: [], now: noon, private: true)
+    let hidden = try store.create(app: "com.example.chat", title: "", participants: [], now: noon, private: true)
     let openMeta = try JSONSerialization.jsonObject(with: Data(contentsOf: open.metaURL)) as! [String: Any]
     let hiddenMeta = try JSONSerialization.jsonObject(with: Data(contentsOf: hidden.metaURL)) as! [String: Any]
     #expect(openMeta["private"] == nil)   // absent, not `false`: an old worker sees the usual meta

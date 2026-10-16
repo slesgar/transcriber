@@ -343,7 +343,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Everything watched that is not a native meeting app: for those the tabs are the only
     /// source of a title, and the only way to tell a call from any other site.
     static let browserApps = MeetingDetector.defaultApps.filter {
-        $0 != TalkInspector.bundleID && $0 != "us.zoom"
+        $0 != TalkInspector.bundleID && $0 != "us.zoom"   // leak-ok: bundle id Zoom, схема
     }
 
     /// A call in a browser tab (Толк web, Meet) is indistinguishable from any other tab from
@@ -351,7 +351,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static func promptName(for app: String) -> String {
         switch app {
         case TalkInspector.bundleID: return "Толке"
-        case "us.zoom": return "Zoom"
+        case "us.zoom": return "Zoom"   // leak-ok: bundle id Zoom, схема
         default: return "браузере"
         }
     }

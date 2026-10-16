@@ -176,7 +176,7 @@ import Testing
       "_comment": "не трогать",
       "privacy": {
         "apps": [
-          "us.zoom"
+          "com.example.chat"
         ],
         "windows": [
           {
@@ -203,7 +203,7 @@ import Testing
     let object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
     #expect(object["_comment"] as? String == "не трогать")
     #expect(ReconConfig.load(from: url) == ReconConfig.defaults)
-    #expect(PrivacyRules.load(from: url).apps == ["us.zoom"])
+    #expect(PrivacyRules.load(from: url).apps == ["com.example.chat"])
     #expect(PrivacyRules.load(from: url).windows == [PrivateWindow(weekday: 3, from: "12:00", to: "12:50")])
 }
 

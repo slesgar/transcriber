@@ -4,7 +4,7 @@ vault_root: ~/Documents/Vault
 # Папки внутри вольта: Raw-транскрипты и заметки встреч
 raw_subdir: Raw/Transcripts
 meetings_subdir: Meetings
-# Приватные записи (в meta.json стоит private: true) идут сюда, а не в вольт: ни транскрипта,
+# Приватная запись (в meta.json стоит private: true) идёт сюда, а не в вольт: ни транскрипта,
 # ни заметки, ни голоса в библиотеке. Каталог и файлы — только для владельца (0700/0600).
 private_dir: ~/Documents/Transcriber Private
 # Транскрипты корпоративного бота Толка (заметки бота Толка) в вольте — эталон для `transcriber bench-ref`.

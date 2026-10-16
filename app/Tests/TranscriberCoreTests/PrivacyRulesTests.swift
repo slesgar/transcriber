@@ -19,7 +19,7 @@ private func tempConfig() -> URL {
 /// Умолчания нейтральны, поэтому тесты правил задают своё окно и приложение явно:
 /// вторник 12:00–12:50 (2026-09-22) и Zoom.
 private let rules = PrivacyRules(windows: [PrivateWindow(weekday: 3, from: "12:00", to: "12:50")],
-                                 apps: ["us.zoom"])
+                                 apps: ["com.example.chat"])
 
 @Test func weekdayNumbersMatchCalendar() {
     #expect(calendar.component(.weekday, from: at(21, 12, 0)) == 2)   // понедельник
@@ -32,7 +32,7 @@ private let rules = PrivacyRules(windows: [PrivateWindow(weekday: 3, from: "12:0
     #expect(d.apps.isEmpty)
     #expect(d.workHosts.isEmpty)
     #expect(d.workApps == ["kontur.talk"])
-    #expect(d.isPrivate(app: "us.zoom", at: Date()) == false)
+    #expect(d.isPrivate(app: "com.example.chat", at: Date()) == false)
 }
 
 @Test func loadWritesDefaultsIntoMissingDirectory() {
@@ -71,8 +71,8 @@ private let rules = PrivacyRules(windows: [PrivateWindow(weekday: 3, from: "12:0
 }
 
 @Test func zoomIsPrivateAtAnyTime() {
-    #expect(rules.isPrivate(app: "us.zoom", at: at(22, 11, 0)))
-    #expect(rules.isPrivate(app: "us.zoom.xos", at: at(23, 9, 15)))   // префикс, не точное совпадение
+    #expect(rules.isPrivate(app: "com.example.chat", at: at(22, 11, 0)))
+    #expect(rules.isPrivate(app: "com.example.chat.helper", at: at(23, 9, 15)))   // префикс, не точное совпадение
 }
 
 @Test func windowBoundariesAreInclusive() {

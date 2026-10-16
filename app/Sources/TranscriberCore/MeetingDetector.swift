@@ -10,7 +10,7 @@ public enum MeetingEvent: Equatable {
 public final class MeetingDetector {
     /// Browsers are watched too: a Толк/Meet call in a tab shows up only as the browser's
     /// audio helper holding the mic, and the first missed meeting was exactly that.
-    public static let defaultApps = ["kontur.talk", "us.zoom", "com.google.Chrome",
+    public static let defaultApps = ["kontur.talk", "us.zoom", "com.google.Chrome",   // leak-ok: bundle id Zoom — известное приложение встреч, схема
                                      "com.microsoft.edgemac", "com.apple.Safari"]
 
     private let apps: [String]

@@ -648,7 +648,7 @@ def test_session_lock_refuses_when_held_and_cleans_up(tmp_path):
         other.kill(); other.wait()
 
 
-# ---- приватные записи: make-private ------------------------------------------
+# ---- приватная запись: make-private ------------------------------------------
 
 
 def test_daemon_puts_an_early_private_session_outside_the_vault(vault, tmp_path, private_dir, monkeypatch, caplog):

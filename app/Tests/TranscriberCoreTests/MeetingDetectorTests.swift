@@ -8,7 +8,7 @@ private func proc(_ bundle: String, input: Bool) -> AudioProcess {
 
 @Test func startsWhenWatchedAppUsesMic() {
     var procs: [AudioProcess] = [proc("com.google.Chrome.helper", input: false)]
-    let d = MeetingDetector(apps: ["kontur.talk", "us.zoom"], lister: { procs }, endGrace: 60)
+    let d = MeetingDetector(apps: ["kontur.talk", "us.zoom"], lister: { procs }, endGrace: 60)   // leak-ok: bundle id Zoom, схема
     let t0 = Date(timeIntervalSince1970: 1_000)
     #expect(d.poll(now: t0) == nil)
     procs.append(proc("kontur.talk.helper", input: true))
@@ -42,7 +42,7 @@ private func proc(_ bundle: String, input: Bool) -> AudioProcess {
 /// The first missed meeting ran in a browser tab (Толк web), so browsers are watched too —
 /// their audio helper is what actually holds the mic, hence the prefix match.
 @Test func browsersAreWatchedByDefault() {
-    #expect(MeetingDetector.defaultApps == ["kontur.talk", "us.zoom", "com.google.Chrome",
+    #expect(MeetingDetector.defaultApps == ["kontur.talk", "us.zoom", "com.google.Chrome",   // leak-ok: bundle id Zoom, схема
                                             "com.microsoft.edgemac", "com.apple.Safari"])
     let d = MeetingDetector(lister: { [proc("com.google.Chrome.helper", input: true)] })
     #expect(d.poll(now: Date()) == .started(app: "com.google.Chrome"))
