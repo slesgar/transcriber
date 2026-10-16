@@ -82,7 +82,7 @@ private func tempDir() -> URL {
     let s = SettingsStore.load(appConfig: dir.appendingPathComponent("app-config.json"),
                                workerConfig: dir.appendingPathComponent("config.yaml"))
     #expect(s == Settings(ownerName: "Owner", ownerTalkName: "", vaultRoot: "~/Documents/Vault",
-                          privateDir: "~/Documents/Приватные записи", workHosts: [], privateWindows: [], privateApps: []))
+                          privateDir: "~/Documents/Transcriber Private", workHosts: [], privateWindows: [], privateApps: []))
 }
 
 @Test func loadReadsUnquotedAndQuotedValues() throws {

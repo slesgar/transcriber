@@ -44,7 +44,7 @@ class Answers:
     owner_name: str = "Owner"
     owner_talk_name: str = ""
     vault_root: str = "~/Documents/Vault"
-    private_dir: str = "~/Documents/Приватные записи"
+    private_dir: str = "~/Documents/Transcriber Private"
     meeting_hosts: list[str] = field(default_factory=list)
 
 
