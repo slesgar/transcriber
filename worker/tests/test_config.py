@@ -138,7 +138,7 @@ def test_private_dir_has_a_default_and_is_expanded(tmp_path):
 
 def test_shipped_yaml_keeps_private_dir_outside_the_vault():
     data = _yaml.safe_load((config_module.CODE_ROOT / "worker" / "config.example.yaml").read_text())
-    assert "Приватные записи" in data["private_dir"]
+    assert "Transcriber Private" in data["private_dir"]
     assert data["vault_root"] not in data["private_dir"]
 
 
