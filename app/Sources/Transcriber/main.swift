@@ -238,7 +238,7 @@ if let i = CommandLine.arguments.firstIndex(of: "--transcript-test"),
                     startedAt: Date().addingTimeInterval(-754), near: nil)
     }
     if let j = CommandLine.arguments.firstIndex(of: "--transcript-png"), let png = CommandLine.arguments.dropFirst(j + 1).first {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { window.snapshot(to: URL(fileURLWithPath: png)) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(1, seconds - 0.5)) { window.snapshot(to: URL(fileURLWithPath: png)) }
     }
     DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { window.close(); exit(0) }
     app.run()

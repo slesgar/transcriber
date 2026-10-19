@@ -1,12 +1,13 @@
 import AppKit
 import TranscriberCore
 
-/// Window with the text recognised so far, opened by a click on the floating button. It reads the
-/// Raw the worker rewrites after every block (`LiveTranscript`) and carries the actions that used
-/// to live in the button's menu, so the transcript and «stop» are one place.
+/// Window with the text recognised so far, opened by a click on the floating button. It follows
+/// the Raw the worker rewrites after every block (`LiveTranscriptFollower`) and carries the actions
+/// that used to live in the button's menu, so the transcript and «stop» are one place.
 ///
 /// Non-activating: the meeting app keeps focus, yet the panel can still become key, so the text
-/// scrolls, selects and copies.
+/// scrolls, selects and copies. Kept out of screen sharing — a live transcript on a shared screen
+/// is exactly the leak a private recording exists to avoid.
 final class TranscriptWindow: NSObject, NSWindowDelegate {
     var onOpenNote: (() -> Void)?
     var onStop: (() -> Void)?
@@ -16,21 +17,25 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
     private var textView: NSTextView?
     private var elapsedLabel: NSTextField?
     private var timer: Timer?
-    private var session: SessionDir?
+    private var follower: LiveTranscriptFollower?
     private var startedAt: Date?
-    private var shown: LiveTranscript?
+    /// The body on screen; nil — the placeholder (or nothing yet).
+    private var shownBody: String?
 
     static let waitingText = "Текст появится, когда воркер распознает первый блок — обычно через минуту-две после начала речи."
-    /// Raw is rewritten once per recognised block (45–90 s of speech), so two seconds is plenty.
-    static let refreshEvery: TimeInterval = 2
+    /// The follower only stats the Raw between rewrites, so a one-second tick is cheap and keeps
+    /// the elapsed time honest.
+    static let tick: TimeInterval = 1
 
     var isVisible: Bool { panel?.isVisible ?? false }
+    var session: SessionDir? { follower?.session }
 
     func show(session: SessionDir, title: String?, startedAt: Date?, near anchor: NSRect?) {
-        self.session = session
+        if follower?.session != session { forget() }
+        if follower == nil { follower = LiveTranscriptFollower(session: session) }
         self.startedAt = startedAt
         let p = panel ?? makePanel()
-        p.title = (title?.isEmpty == false) ? title! : "Транскрипт"
+        if let title, !title.isEmpty { p.title = title } else { p.title = "Транскрипт" }
         let opening = !p.isVisible
         if opening { place(p, near: anchor) }
         refresh()
@@ -38,49 +43,74 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
         p.orderFrontRegardless()
         p.makeKey()
         if timer == nil {
-            let t = Timer(timeInterval: Self.refreshEvery, repeats: true) { [weak self] _ in self?.refresh() }
+            let t = Timer(timeInterval: Self.tick, repeats: true) { [weak self] _ in self?.refresh() }
             RunLoop.main.add(t, forMode: .common)
             timer = t
         }
     }
 
+    /// Closing only stops the ticking; the text and the follower stay, so reopening is instant.
     func close() {
-        timer?.invalidate()
-        timer = nil
         panel?.orderOut(nil)
-        shown = nil
+        stopTicking()
     }
 
     /// Recording is over: forget the session so a later click cannot show a stale meeting.
     func reset() {
         close()
-        session = nil
-        startedAt = nil
+        forget()
     }
 
-    func windowWillClose(_ notification: Notification) {
+    func windowWillClose(_ notification: Notification) { stopTicking() }
+
+    private func stopTicking() {
         timer?.invalidate()
         timer = nil
-        shown = nil
+    }
+
+    private func forget() {
+        follower = nil
+        startedAt = nil
+        shownBody = nil
+        textView?.string = ""
     }
 
     private func refresh() {
         elapsedLabel?.stringValue = "Запись · \(FloatingButton.elapsed(since: startedAt))"
-        guard let session, let textView else { return }
-        let now = LiveTranscript.read(session)
-        guard now != shown else { return }
-        shown = now
-        let atBottom = Self.isScrolledToBottom(textView)
+        guard let textView, let now = follower?.poll() else { return }
         switch now {
         case .waiting:
+            guard shownBody != nil || textView.string.isEmpty else { return }   // keep what was shown
+            shownBody = nil
             textView.string = Self.waitingText
             textView.textColor = .secondaryLabelColor
         case .text(let body):
-            textView.string = body
-            textView.textColor = .labelColor
+            show(body, in: textView)
         }
+    }
+
+    /// New replies are appended, so a selection in progress and the scroll position survive the
+    /// worker's rewrite; only a real rewrite of earlier text replaces everything.
+    private func show(_ body: String, in textView: NSTextView) {
+        guard body != shownBody else { return }
+        let atBottom = Self.isScrolledToBottom(textView)
+        let attrs: [NSAttributedString.Key: Any] = [.font: Self.font, .foregroundColor: NSColor.labelColor]
+        if let old = shownBody, let tail = LiveTranscript.appendix(from: old, to: body),
+           let storage = textView.textStorage {
+            storage.append(NSAttributedString(string: tail, attributes: attrs))
+        } else {
+            let origin = textView.enclosingScrollView?.contentView.bounds.origin
+            textView.textStorage?.setAttributedString(NSAttributedString(string: body, attributes: attrs))
+            if !atBottom, let origin, let clip = textView.enclosingScrollView?.contentView {
+                clip.scroll(to: origin)
+                textView.enclosingScrollView?.reflectScrolledClipView(clip)
+            }
+        }
+        shownBody = body
         if atBottom { textView.scrollToEndOfDocument(nil) }
     }
+
+    private static let font = NSFont.systemFont(ofSize: 13)
 
     /// Follow new lines only when the reader is already at the end: scrolled up = reading, leave it.
     private static func isScrolledToBottom(_ textView: NSTextView) -> Bool {
@@ -103,26 +133,28 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
     }
 
     private func makePanel() -> NSPanel {
-        let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 440, height: 520),
-                        styleMask: [.titled, .closable, .resizable, .utilityWindow, .nonactivatingPanel],
-                        backing: .buffered, defer: false)
+        let p = KeyPanel(contentRect: NSRect(x: 0, y: 0, width: 460, height: 520),
+                         styleMask: [.titled, .closable, .resizable, .utilityWindow, .nonactivatingPanel],
+                         backing: .buffered, defer: false)
         p.level = .floating
         p.isFloatingPanel = true
         p.hidesOnDeactivate = false
         p.isReleasedWhenClosed = false
+        p.sharingType = .none
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        p.minSize = NSSize(width: 300, height: 220)
+        p.minSize = NSSize(width: 460, height: 220)   // the bar needs the width for all three buttons
         p.delegate = self
 
         let scroll = NSTextView.scrollableTextView()
         scroll.hasVerticalScroller = true
         scroll.borderType = .noBorder
-        let text = scroll.documentView as! NSTextView
+        guard let text = scroll.documentView as? NSTextView else { fatalError("scrollableTextView has a text view") }
         text.isEditable = false
         text.isSelectable = true
         text.isRichText = false
-        text.font = .systemFont(ofSize: 13)
+        text.font = Self.font
         text.textContainerInset = NSSize(width: 8, height: 8)
+        p.textView = text
 
         let elapsed = NSTextField(labelWithString: "")
         elapsed.textColor = .secondaryLabelColor
@@ -171,4 +203,21 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
     @objc private func openNote() { onOpenNote?() }
     @objc private func stopRecording() { onStop?() }
     @objc private func hideButton() { onHide?() }
+
+    /// A menu-bar app has no Edit menu, so ⌘C/⌘A/⌘W would go nowhere: the panel handles them itself.
+    private final class KeyPanel: NSPanel {
+        weak var textView: NSTextView?
+
+        override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command else {
+                return super.performKeyEquivalent(with: event)
+            }
+            switch event.charactersIgnoringModifiers {
+            case "c": textView?.copy(nil); return true
+            case "a": textView?.selectAll(nil); return true
+            case "w": performClose(nil); return true
+            default: return super.performKeyEquivalent(with: event)
+            }
+        }
+    }
 }

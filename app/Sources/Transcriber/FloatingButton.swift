@@ -24,6 +24,9 @@ final class FloatingButton {
               session: SessionDir? = nil) {
         self.title = title
         self.startedAt = startedAt
+        if session != self.session, transcript.session != nil, transcript.session != session {
+            transcript.reset()   // a new recording without an idle in between: never show the old one
+        }
         self.session = session
         if let panel, let view = panel.contentView as? DotView {
             view.isPrivate = isPrivate
