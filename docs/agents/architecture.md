@@ -32,10 +32,10 @@
 - `TranscriberCore/AppPaths.swift` — `dataDir`, `appConfig`, `sessions`, `workerConfig` (единственное место, знающее каталог данных).
 - `PrivacyRules.swift` — `PrivateWindow` (+ `parse(line:)`/`line`), `PrivacyRules` (`isPrivate`, `load(from:)` пишет умолчания в пустой файл), `TalkConfig.swift`, `ReconConfig.swift` — свои блоки того же `app-config.json`.
 - `Settings.swift` — `Settings`, `SettingsStore.load/save`, `settingYAML`, `settingPrivacy` (редактирует файлы, не разрушая комментарии и чужие ключи).
-- `SessionStore.swift` — `SessionDir`, `SessionStore.create` (meta.json), `defaultRoot`.
+- `SessionStore.swift` — `SessionDir` (`notePath`/`rawPath`/`status` из `state.json`), `SessionStore.create` (meta.json), `defaultRoot`; `LiveTranscript.swift` — текст, распознанный к этому моменту: Raw по `raw_path`, всё после заголовка `## Полный транскрипт` (тот же, что пишет `vault.render_raw`).
 - `MeetingDetector.swift` + `AudioProcesses.swift` — кто держит микрофон; `BrowserTabs.swift` — вкладка со звонком (`defaultMeetingHosts` + хосты из конфига), `TalkInspector.swift`/`TalkObserver.swift`/`AXDump.swift`/`AXRecon.swift` — AX-дерево Толка, `talk.jsonl`.
 - `TapCapture.swift` (UID агрегатного устройства = bundle id + `.agg`), `AudioDevices.swift`, `Downmixer.swift`, `PcmWriter.swift` — захват и запись звука; `PowerHold.swift` — не спать; `Obsidian.swift` — открыть заметку; `PromptPolicy.swift` — судьба карточки «Записать?»; `Log.swift`.
-- `Transcriber/AppDelegate.swift` — оркестрация (детектор, карточки, старт/стоп, AX-наблюдатели); `SessionController.swift` — одна запись; `StatusItem.swift` — меню (запись, приватная, заметка, «Настройки…», папка сессий, выход); `SettingsWindow.swift` — окно настроек; `PromptPanel.swift`, `FloatingButton.swift`; `main.swift` — `--record-test`.
+- `Transcriber/AppDelegate.swift` — оркестрация (детектор, карточки, старт/стоп, AX-наблюдатели); `SessionController.swift` — одна запись; `StatusItem.swift` — меню (запись, приватная, заметка, «Настройки…», папка сессий, выход); `SettingsWindow.swift` — окно настроек; `PromptPanel.swift`, `FloatingButton.swift` (кружок записи: клик — окно текста, правый клик — меню действий), `TranscriptWindow.swift` (окно с текстом записи, перечитывает Raw раз в 2 с, панель «Открыть заметку / Остановить / Скрыть кнопку»); `main.swift` — `--record-test`, `--prompt-test`, `--transcript-test <каталог сессии>` (снимок окна текста).
 
 ## Скрипты, установка, спайк
 
@@ -58,7 +58,8 @@
 | Имена говорящих | `talk.py`, `voices.py`, `owner.py`, `speakers.py` |
 | Сравнение с ботом Толка | `bench_ref.py`, `config.yaml: reference_subdir` |
 | Качество диаризации (пороги кластеризации) | `speakers.py`, `bench_diar.py` (стенд), `config.example.yaml` |
-| Формат Raw/MTG | `vault.py` (+ инструкции вольта, см. integrations.md) |
+| Формат Raw/MTG | `vault.py` (+ инструкции вольта, см. integrations.md; заголовок транскрипта читает и `LiveTranscript.swift`) |
+| Кружок записи и окно текста | `FloatingButton.swift`, `TranscriptWindow.swift`, `LiveTranscript.swift` |
 | Перезапуск встречи, несколько частей | `continuation.py`, `vault.render_meeting`, `daemon.py` |
 
 ## Правила для ревью

@@ -438,7 +438,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .recording(let dir):
             status.setRecording(true, detail: dir.id, private: controller.currentIsPrivate)
             floating.show(private: controller.currentIsPrivate, title: controller.currentTitle,
-                          startedAt: controller.currentStartedAt)
+                          startedAt: controller.currentStartedAt, session: dir)
             startAXWatchers(dir)
         }
     }

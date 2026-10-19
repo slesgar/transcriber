@@ -1,24 +1,30 @@
 import AppKit
+import TranscriberCore
 
-/// Small always-on-top round button at the right edge of the screen. A click pops up a menu:
-/// jumping straight into the note was a blind action — from the button there is now a way to see
-/// how long the recording has been running, open the note, stop, or get the button out of the way.
+/// Small always-on-top round button at the right edge of the screen. A click opens the window with
+/// the text recognised so far (`TranscriptWindow`), which also carries the actions: open the note,
+/// stop, get the button out of the way. A right click (or ctrl-click) pops up the same actions as
+/// a menu, together with how long the recording has been running.
 final class FloatingButton {
     private var panel: NSPanel?
+    private let transcript = TranscriptWindow()
+    private var session: SessionDir?
     /// The menu is built fresh on every click, so the elapsed time is current and not whatever it
     /// was when the session started.
     private var startedAt: Date?
     private var title: String?
 
-    var onOpenNote: (() -> Void)?
-    var onStop: (() -> Void)?
-    var onHide: (() -> Void)?
+    var onOpenNote: (() -> Void)? { didSet { transcript.onOpenNote = onOpenNote } }
+    var onStop: (() -> Void)? { didSet { transcript.onStop = onStop } }
+    var onHide: (() -> Void)? { didSet { transcript.onHide = onHide } }
 
     /// `private` paints the dot purple — the same signal the menu and the prompt card give, so a
     /// glance at the button is enough to know where this recording is going.
-    func show(private isPrivate: Bool = false, title: String? = nil, startedAt: Date? = nil) {
+    func show(private isPrivate: Bool = false, title: String? = nil, startedAt: Date? = nil,
+              session: SessionDir? = nil) {
         self.title = title
         self.startedAt = startedAt
+        self.session = session
         if let panel, let view = panel.contentView as? DotView {
             view.isPrivate = isPrivate
             return
@@ -36,8 +42,9 @@ final class FloatingButton {
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         let view = DotView(frame: NSRect(x: 0, y: 0, width: size, height: size))
         view.isPrivate = isPrivate
-        view.toolTip = "Идёт запись — нажми для действий"
-        view.onClick = { [weak self] anchor in self?.popUpMenu(on: anchor) }
+        view.toolTip = "Идёт запись — нажми, чтобы увидеть текст; правый клик — действия"
+        view.onClick = { [weak self] _ in self?.toggleTranscript() }
+        view.onMenu = { [weak self] anchor in self?.popUpMenu(on: anchor) }
         p.contentView = view
         if let screen = NSScreen.main ?? NSScreen.screens.first {   // .main is nil with no key window
             let f = screen.visibleFrame
@@ -48,10 +55,21 @@ final class FloatingButton {
     }
 
     func hide() {
+        transcript.reset()
         panel?.orderOut(nil)
         panel = nil
         startedAt = nil
         title = nil
+        session = nil
+    }
+
+    private func toggleTranscript() {
+        if transcript.isVisible {
+            transcript.close()
+            return
+        }
+        guard let session else { return }
+        transcript.show(session: session, title: title, startedAt: startedAt, near: panel?.frame)
     }
 
     private func popUpMenu(on view: NSView) {
@@ -66,11 +84,13 @@ final class FloatingButton {
             menu.addItem(name)
         }
         menu.addItem(.separator())
+        let showText: (() -> Void)? = session == nil ? nil : { [weak self] in self?.toggleTranscript() }
         let actions: [(String, Selector, (() -> Void)?)] = [
+            (transcript.isVisible ? "Скрыть текст" : "Показать текст", #selector(Actions.showText), showText),
             ("Открыть заметку", #selector(Actions.openNote), onOpenNote),
             ("Остановить запись", #selector(Actions.stop), onStop),
         ]
-        let target = Actions(openNote: onOpenNote, stop: onStop, hide: onHide)
+        let target = Actions(showText: showText, openNote: onOpenNote, stop: onStop, hide: onHide)
         for (title, selector, block) in actions {
             let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
             item.target = target
@@ -97,14 +117,17 @@ final class FloatingButton {
 
     /// Menu items need an ObjC target; the closures live here for the life of the pop-up.
     private final class Actions: NSObject {
+        private let showTextBlock: (() -> Void)?
         private let openNoteBlock: (() -> Void)?
         private let stopBlock: (() -> Void)?
         private let hideBlock: (() -> Void)?
-        init(openNote: (() -> Void)?, stop: (() -> Void)?, hide: (() -> Void)?) {
+        init(showText: (() -> Void)?, openNote: (() -> Void)?, stop: (() -> Void)?, hide: (() -> Void)?) {
+            showTextBlock = showText
             openNoteBlock = openNote
             stopBlock = stop
             hideBlock = hide
         }
+        @objc func showText() { showTextBlock?() }
         @objc func openNote() { openNoteBlock?() }
         @objc func stop() { stopBlock?() }
         @objc func hide() { hideBlock?() }
@@ -112,6 +135,7 @@ final class FloatingButton {
 
     private final class DotView: NSView {
         var onClick: ((NSView) -> Void)?
+        var onMenu: ((NSView) -> Void)?
         var isPrivate = false { didSet { if isPrivate != oldValue { needsDisplay = true } } }
         private var downAt: NSPoint = .zero
 
@@ -138,7 +162,10 @@ final class FloatingButton {
 
         override func mouseUp(with event: NSEvent) {
             let up = NSEvent.mouseLocation
-            if hypot(up.x - downAt.x, up.y - downAt.y) < 4 { onClick?(self) }
+            guard hypot(up.x - downAt.x, up.y - downAt.y) < 4 else { return }   // it was a drag
+            if event.modifierFlags.contains(.control) { onMenu?(self) } else { onClick?(self) }
         }
+
+        override func rightMouseDown(with event: NSEvent) { onMenu?(self) }
     }
 }
