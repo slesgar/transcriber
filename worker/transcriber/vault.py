@@ -95,7 +95,7 @@ def render_raw(meta: Meta, records: list[Rec], n_speakers: int, status_text: str
         + f"Статус: {status_text}. "
         f"«Me» — {owner} (микрофон), «Speaker N» — собеседники (системный звук)"
         + (" или гости на микрофоне" if mic_guests else "") + ", метки по голосу.", "",
-        "## Полный транскрипт", "",
+        "## Полный транскрипт", "",   # приложение ищет этот заголовок дословно (LiveTranscript.swift)
     ]
     next_marker = marker_every_s
     pending_breaks = sorted(breaks or [])

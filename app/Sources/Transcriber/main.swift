@@ -221,6 +221,29 @@ if let i = CommandLine.arguments.firstIndex(of: "--prompt-test") {
     app.run()
 }
 
+/// `Transcriber --transcript-test <session dir> [seconds] [--transcript-png <path>]` opens the live
+/// transcript window on an existing session dir (a fake one is enough: `state.json` with `raw_path`)
+/// for a visual check, then exits.
+if let i = CommandLine.arguments.firstIndex(of: "--transcript-test"),
+   let path = CommandLine.arguments.dropFirst(i + 1).first {
+    let seconds = Double(CommandLine.arguments.dropFirst(i + 2).first ?? "8") ?? 8
+    let app = NSApplication.shared
+    app.setActivationPolicy(.accessory)
+    let window = TranscriptWindow()
+    window.onOpenNote = { print("open note") }
+    window.onStop = { print("stop") }
+    window.onHide = { print("hide") }
+    DispatchQueue.main.async {
+        window.show(session: SessionDir(url: URL(fileURLWithPath: path)), title: "Тестовая встреча",
+                    startedAt: Date().addingTimeInterval(-754), near: nil)
+    }
+    if let j = CommandLine.arguments.firstIndex(of: "--transcript-png"), let png = CommandLine.arguments.dropFirst(j + 1).first {
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(1, seconds - 0.5)) { window.snapshot(to: URL(fileURLWithPath: png)) }
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { window.close(); exit(0) }
+    app.run()
+}
+
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

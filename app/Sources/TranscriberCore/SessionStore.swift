@@ -3,6 +3,8 @@ import Foundation
 public struct SessionDir: Equatable {
     public let url: URL
     public var id: String { url.lastPathComponent }
+
+    public init(url: URL) { self.url = url }
     public var metaURL: URL { url.appendingPathComponent("meta.json") }
     public var stateURL: URL { url.appendingPathComponent("state.json") }
     public var stopURL: URL { url.appendingPathComponent("STOP") }
@@ -22,6 +24,8 @@ public struct SessionDir: Equatable {
 
     public func notePath() -> String? { state()?["note_path"] as? String }
     public func status() -> String? { state()?["status"] as? String }
+    /// Raw of the running session — the worker rewrites it after every recognised block.
+    public func rawPath() -> String? { state()?["raw_path"] as? String }
 }
 
 public final class SessionStore {
