@@ -163,3 +163,61 @@ def test_daemon_keeps_previous_config_when_reload_fails(vault, tmp_path):
     dm = daemon.Daemon(cfg, models=fake_models(), footprint=lambda: 0.0, reload_config=broken)
     dm.once()
     assert dm.cfg is cfg and dm.pipes
+
+
+def _count_loads(monkeypatch):
+    loads = []
+    real = daemon.Session.load
+
+    def counting(path):
+        loads.append(path.name)
+        return real(path)
+
+    monkeypatch.setattr(daemon.Session, "load", staticmethod(counting))
+    return loads
+
+
+def test_finalized_session_is_not_reloaded_on_every_pass(vault, tmp_path, monkeypatch):
+    # 117 завершённых сессий грузились целиком (state.json + embeddings.npz) каждую секунду: 75% CPU
+    sessions = tmp_path / "sessions"
+    d = _session(sessions)
+    (d / "STOP").touch()
+    dm = daemon.Daemon(Config(vault_root=vault, sessions_dir=sessions), models=fake_models(),
+                       footprint=lambda: 0.0)
+    dm.once()
+    assert _status(d) == "finalized"
+    loads = _count_loads(monkeypatch)
+    for _ in range(5):
+        dm.once()
+    assert len(loads) <= 1                     # один раз — узнать, что она завершена, дальше не трогаем
+
+
+def test_finalized_session_from_before_start_is_loaded_once(vault, tmp_path, monkeypatch):
+    sessions = tmp_path / "sessions"
+    d = _session(sessions)
+    (d / "STOP").touch()
+    daemon.Daemon(Config(vault_root=vault, sessions_dir=sessions), models=fake_models(),
+                  footprint=lambda: 0.0).once()
+    dm = daemon.Daemon(Config(vault_root=vault, sessions_dir=sessions), models=fake_models(),
+                       footprint=lambda: 0.0)      # перезапуск воркера: сессия уже завершена
+    loads = _count_loads(monkeypatch)
+    for _ in range(5):
+        dm.once()
+    assert loads == [d.name]
+
+
+def test_reopened_finalized_session_is_picked_up_again(vault, tmp_path):
+    sessions = tmp_path / "sessions"
+    d = _session(sessions)
+    (d / "STOP").touch()
+    dm = daemon.Daemon(Config(vault_root=vault, sessions_dir=sessions), models=fake_models(),
+                       footprint=lambda: 0.0)
+    dm.once()
+    dm.once()
+    assert _status(d) == "finalized" and d not in dm.pipes
+    state = json.loads((d / "state.json").read_text())
+    state["status"] = "recording"              # так сессию снова открывает CLI
+    (d / "state.json").write_text(json.dumps(state, ensure_ascii=False))
+    (d / "STOP").unlink()
+    dm.once()
+    assert d in dm.pipes

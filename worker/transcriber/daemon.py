@@ -37,6 +37,8 @@ class Daemon:
         self.pipes: dict[Path, Pipeline] = {}
         self.failures: dict[Path, int] = {}      # подряд идущие падения по каталогу
         self.retry_after: dict[Path, float] = {}
+        # завершённые сессии → отпечаток их state.json; пока он тот же, сессию не открываем вовсе
+        self._dead: dict[Path, tuple[int, int]] = {}
 
     @property
     def models(self) -> Models:
@@ -52,6 +54,8 @@ class Daemon:
             return False
         self._forget_vanished()
         for d in sorted(p for p in self.cfg.sessions_dir.iterdir() if (p / "meta.json").exists()):
+            if self._known_dead(d):
+                continue
             if self._sleeping(d):
                 continue
             self._stop_if_abandoned(d)
@@ -64,8 +68,11 @@ class Daemon:
                     del self.pipes[d]            # финализировали снаружи (cli finalize)
                     continue
                 if pipe is None:
+                    stamp = _state_stamp(d)              # до загрузки: запись после неё сбросит отпечаток
                     session = Session.load(d)
                     if session.state.status in DEAD:
+                        if stamp is not None:
+                            self._dead[d] = stamp
                         continue
                     if d not in self._seen:
                         self._seen.add(d)
@@ -155,11 +162,28 @@ class Daemon:
 
     # ---- отказоустойчивость ----------------------------------------------
 
+    def _known_dead(self, d: Path) -> bool:
+        """Сессия уже найдена завершённой и её state.json с тех пор не менялся.
+
+        Без этого каждый проход (раз в 0,2–1 с) целиком грузил state.json и embeddings.npz всех
+        завершённых сессий — 117 каталогов держали воркер на 75% CPU между встречами, а сессии
+        с рассинхроном эмбеддингов писали предупреждение раз в 5 с. CLI, снова открывающий сессию
+        (retranscribe), переписывает state.json — отпечаток меняется, и демон смотрит её заново.
+        """
+        stamp = self._dead.get(d)
+        if stamp is None:
+            return False
+        if _state_stamp(d) == stamp:
+            return True
+        del self._dead[d]
+        return False
+
     def _forget_vanished(self) -> None:
         for d in [p for p in self.pipes if not (p / "meta.json").exists()]:
             log.info("session %s vanished, dropping", d.name)
             del self.pipes[d]
         self._seen = {p for p in self._seen if (p / "meta.json").exists()}
+        self._dead = {p: s for p, s in self._dead.items() if (p / "meta.json").exists()}
 
     def _sleeping(self, d: Path) -> bool:
         return self.failures.get(d, 0) >= FAIL_LIMIT and time.monotonic() < self.retry_after.get(d, 0.0)
@@ -192,6 +216,14 @@ class Daemon:
             worked = self.once()
             time.sleep(0.2 if worked else 1.0)
         raise SystemExit(EXIT_RESTART)
+
+
+def _state_stamp(d: Path) -> tuple[int, int] | None:
+    try:
+        st = (d / "state.json").stat()
+    except OSError:
+        return None
+    return st.st_mtime_ns, st.st_size
 
 
 def _status_on_disk(d: Path) -> str:
