@@ -276,7 +276,7 @@ public struct AgentPreset: Equatable {
 
     public static let known: [AgentPreset] = [
         AgentPreset(name: "Claude Code", binary: "claude",
-                    command: "claude -p --tools Read,Grep,Glob --setting-sources \"\" --strict-mcp-config --permission-mode dontAsk --no-session-persistence"),
+                    command: "claude -p --tools Read,Grep,Glob --setting-sources \"\" --strict-mcp-config --permission-mode dontAsk --no-session-persistence"),   // leak-ok: preset of a known agent (scheme), an owner may pick the same command
         AgentPreset(name: "Codex", binary: "codex",
                     command: "codex exec --skip-git-repo-check --ephemeral --sandbox read-only -"),
     ]
