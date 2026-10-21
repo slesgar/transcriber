@@ -353,7 +353,7 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
                 out.append(NSAttributedString(string: "…\n", attributes: [
                     .font: Self.font, .foregroundColor: NSColor.tertiaryLabelColor]))
             } else if let answer = qa.answer {
-                out.append(Self.markdown(answer))
+                out.append(AnswerRenderer.render(answer))
                 out.append(NSAttributedString(string: "\n"))
             } else {
                 out.append(NSAttributedString(string: (qa.error ?? "Нет ответа") + "\n", attributes: [
@@ -376,36 +376,6 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
         if qa.withContext { parts.append("с проектами") }
         if !pending, let s = qa.seconds { parts.append("\(s) с") }
         return parts.joined(separator: " · ")
-    }
-
-    /// The agent's markdown (bold, lists, code) shown as rich text; anything unparsable stays plain.
-    static func markdown(_ text: String) -> NSAttributedString {
-        // blank lines between paragraphs become paragraph spacing, not empty lines
-        let text = text.replacingOccurrences(of: "\n[ \t]*\n+", with: "\n", options: .regularExpression)
-        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        let base: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
-        guard let parsed = try? NSMutableAttributedString(markdown: text, options: options) else {
-            return NSAttributedString(string: text, attributes: base)
-        }
-        let full = NSRange(location: 0, length: parsed.length)
-        parsed.addAttribute(.foregroundColor, value: NSColor.labelColor, range: full)
-        parsed.removeAttribute(.link, range: full)   // a link from the transcript is not something to click
-        let para = NSMutableParagraphStyle()
-        para.lineSpacing = 2
-        para.paragraphSpacing = 4
-        parsed.addAttribute(.paragraphStyle, value: para, range: full)
-        parsed.addAttribute(.font, value: font, range: full)
-        // the parser marks emphasis with presentation intents, not fonts
-        parsed.enumerateAttribute(.inlinePresentationIntent, in: full) { value, range, _ in
-            guard let raw = (value as? NSNumber)?.uintValue else { return }
-            let intent = InlinePresentationIntent(rawValue: raw)
-            var f = font
-            if intent.contains(.stronglyEmphasized) { f = .systemFont(ofSize: 13, weight: .semibold) }
-            if intent.contains(.code) { f = .monospacedSystemFont(ofSize: 12, weight: .regular) }
-            if intent.contains(.emphasized) { f = NSFontManager.shared.convert(f, toHaveTrait: .italicFontMask) }
-            parsed.addAttribute(.font, value: f, range: range)
-        }
-        return parsed
     }
 
     private func setSheet(open: Bool) {
