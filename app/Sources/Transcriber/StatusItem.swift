@@ -36,9 +36,18 @@ final class StatusItem {
         sessions.target = self
         menu.addItem(sessions)
         menu.addItem(.separator())
+        let version = NSMenuItem(title: Self.versionLine, action: nil, keyEquivalent: "")
+        version.isEnabled = false
+        menu.addItem(version)
         menu.addItem(NSMenuItem(title: "Выход", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         item.menu = menu
         setRecording(false, detail: nil)
+    }
+
+    /// «Транскрибатор 0.3.0» — which release is running, from the bundle (`CFBundleShortVersionString`).
+    static var versionLine: String {
+        let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+        return "Транскрибатор \(v)"
     }
 
     func setRecording(_ recording: Bool, detail: String?, private isPrivate: Bool = false) {
