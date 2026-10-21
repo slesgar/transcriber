@@ -18,7 +18,7 @@ from .session import Rec, Session, State
 from .speakers import OnlineClusterer, absorb_small_clusters, label, recluster, speaker_index, split_by_names
 from .talk import MIN_SHARE, Span, TalkFile, is_bot, is_room, is_shared, span_share, speaker_for_span
 from .vad import Segmenter
-from .agent_qa import write_agent_qa
+from .agent_qa import write_agent_qa_safely
 from .vault import ensure_stub, update_stub_participants, write_raw
 from .voices import VoiceLibrary, centroid_of
 
@@ -605,7 +605,7 @@ class Pipeline:
         participants = self.talk_participants()
         write_raw(self.cfg, self.s, f"финализирован {datetime.now().strftime('%H:%M')}", participants)
         update_stub_participants(self.cfg, self.s, participants)
-        write_agent_qa(self.cfg, self.s)
+        write_agent_qa_safely(self.cfg, self.s)
         self.s.save_state()
         if not self.cfg.keep_audio:
             for p in (self.s.mic_pcm, self.s.sys_pcm):

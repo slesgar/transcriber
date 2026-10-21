@@ -13,6 +13,8 @@ final class FloatingButton {
     /// was when the session started.
     private var startedAt: Date?
     private var title: String?
+    /// The recording is private: the meeting window then offers no agent.
+    private var isPrivate = false
 
     var onOpenNote: (() -> Void)? { didSet { transcript.onOpenNote = onOpenNote } }
     var onStop: (() -> Void)? { didSet { transcript.onStop = onStop } }
@@ -24,6 +26,7 @@ final class FloatingButton {
               session: SessionDir? = nil) {
         self.title = title
         self.startedAt = startedAt
+        self.isPrivate = isPrivate
         if session != self.session, transcript.session != nil, transcript.session != session {
             transcript.reset()   // a new recording without an idle in between: never show the old one
         }
@@ -72,7 +75,7 @@ final class FloatingButton {
             return
         }
         guard let session else { return }
-        transcript.show(session: session, title: title, startedAt: startedAt, near: panel?.frame)
+        transcript.show(session: session, title: title, startedAt: startedAt, near: panel?.frame, private: isPrivate)
     }
 
     private func popUpMenu(on view: NSView) {

@@ -14,9 +14,10 @@ public struct SessionDir: Equatable {
     public var qaURL: URL { url.appendingPathComponent("qa.jsonl") }
 
     /// `meta.json` says the recording is private: no agent, nothing leaves the private folder.
+    /// An unreadable meta counts as private — the agent is the thing that must fail closed.
     public func isPrivate() -> Bool {
         guard let data = try? Data(contentsOf: metaURL),
-              let meta = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return false }
+              let meta = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return true }
         return meta["private"] as? Bool ?? false
     }
 

@@ -12,6 +12,7 @@ from .continuation import attach
 from .models import Models, load_models
 from .pipeline import Pipeline
 from .session import Session, lock_holder
+from .agent_qa import QA_FILE, write_agent_qa_safely
 from .vault import ensure_stub, write_raw
 
 log = logging.getLogger("transcriber")
@@ -71,6 +72,7 @@ class Daemon:
                     stamp = _state_stamp(d)              # до загрузки: запись после неё сбросит отпечаток
                     session = Session.load(d)
                     if session.state.status in DEAD:
+                        self._late_answers(d, session)
                         if stamp is not None:
                             self._dead[d] = stamp
                         continue
@@ -162,6 +164,19 @@ class Daemon:
 
     # ---- отказоустойчивость ----------------------------------------------
 
+    def _late_answers(self, d: Path, session: Session) -> None:
+        """Ответ агента, пришедший после финализации (агент думает до трёх минут, встреча уже
+        закончилась), дописывается в файл вопросов: qa.jsonl новее state.json — значит не учтён."""
+        if session.state.status != "finalized":
+            return
+        try:
+            qa_m = (d / QA_FILE).stat().st_mtime_ns
+            state_m = (d / "state.json").stat().st_mtime_ns
+        except OSError:
+            return
+        if qa_m > state_m:
+            write_agent_qa_safely(self.cfg, session)
+
     def _known_dead(self, d: Path) -> bool:
         """Сессия уже найдена завершённой и её state.json с тех пор не менялся.
 
@@ -218,12 +233,18 @@ class Daemon:
         raise SystemExit(EXIT_RESTART)
 
 
-def _state_stamp(d: Path) -> tuple[int, int] | None:
+def _state_stamp(d: Path) -> tuple[int, int, int, int] | None:
+    """state.json и qa.jsonl: новый ответ агента к завершённой встрече тоже повод заглянуть."""
     try:
         st = (d / "state.json").stat()
     except OSError:
         return None
-    return st.st_mtime_ns, st.st_size
+    try:
+        qa = (d / QA_FILE).stat()
+        qa_part = (qa.st_mtime_ns, qa.st_size)
+    except OSError:
+        qa_part = (0, 0)
+    return st.st_mtime_ns, st.st_size, *qa_part
 
 
 def _status_on_disk(d: Path) -> str:

@@ -50,6 +50,11 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
     private var qas: [MeetingQA] = []
     private var pending: MeetingQA?
     private var running: AgentRun?
+    /// The question in flight: a completion that is not for it (the window was reset and reopened
+    /// meanwhile) only lands in the log, never in the window.
+    private var askToken: UUID?
+    private var meetingTitle: String?
+    private var renderedCount = -1
 
     static let waitingText = "Текст появится, когда воркер распознает первый блок — обычно через минуту-две после начала речи."
     static let tick: TimeInterval = 1
@@ -58,16 +63,17 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
     var isVisible: Bool { panel?.isVisible ?? false }
     var session: SessionDir? { follower?.session }
 
-    func show(session: SessionDir, title: String?, startedAt: Date?, near anchor: NSRect?) {
+    func show(session: SessionDir, title: String?, startedAt: Date?, near anchor: NSRect?, private priv: Bool = false) {
         if follower?.session != session { forget() }
         if follower == nil {
             follower = LiveTranscriptFollower(session: session)
             qas = MeetingChat.load(session)
-            isPrivate = session.isPrivate()
         }
+        isPrivate = priv || session.isPrivate()   // either source saying «private» is enough
         self.startedAt = startedAt
+        meetingTitle = title?.isEmpty == false ? title : nil
         let p = panel ?? makePanel()
-        p.title = (title?.isEmpty == false ? title! : "Транскрипт")
+        p.title = meetingTitle ?? "Транскрипт"
         let opening = !p.isVisible
         if opening { place(p, near: anchor) }
         refreshComposer()
@@ -98,6 +104,9 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) { stopTicking() }
 
+    /// The owner may have just set an agent up in «Настройки…»: the field follows on return.
+    func windowDidBecomeKey(_ notification: Notification) { refreshComposer() }
+
     private func stopTicking() {
         timer?.invalidate()
         timer = nil
@@ -112,6 +121,8 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
         qas = []
         pending = nil
         running = nil
+        askToken = nil
+        renderedCount = -1
         textView?.string = ""
         setSheet(open: false)
     }
@@ -124,7 +135,9 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
         pill.textColor = tint
         pillBox.layer?.backgroundColor = tint.withAlphaComponent(0.13).cgColor
         updatedLabel.stringValue = Self.updated(changedAt)
-        if pending != nil { renderAnswers() }   // the «думаю… N с» counter
+        if let pending {   // only the counter moves; the sheet text stays put for reading and selecting
+            sheetMeta.stringValue = Self.meta(of: pending, pending: true) + " · думаю… \(Int(Date().timeIntervalSince(pending.askedAt))) с"
+        }
         guard let textView, let now = follower?.poll() else { return }
         switch now {
         case .waiting:
@@ -234,11 +247,22 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
         setRunning(running != nil)
     }
 
+    /// Return in the field asks; it never stops a question already running (the owner is typing the next one).
+    @objc private func askFromField() {
+        if running != nil { NSSound.beep(); return }
+        ask()
+    }
+
+    /// The round button: ask when idle, stop the agent while it thinks.
     @objc private func askOrStop() {
         if let running {
             running.cancel()
             return
         }
+        ask()
+    }
+
+    private func ask() {
         let question = input.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !question.isEmpty, let session else { return }
         let config = AgentConfig.load()
@@ -247,11 +271,13 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
         var transcript = ""
         if case .text(let body) = LiveTranscript.read(session) { transcript = body }
         let prompt = MeetingChat.prompt(question: question, transcript: transcript, history: qas,
-                                        title: panel?.title, withContext: withContext)
+                                        title: meetingTitle, withContext: withContext)
         let cwd = withContext ? config.contextURL : Self.emptyDir()
         let asked = MeetingQA(askedAt: Date(), question: question,
                               agent: AgentPreset.displayName(for: config.command), withContext: withContext)
         pending = asked
+        let token = UUID()
+        askToken = token
         input.stringValue = ""
         setSheet(open: true)
         renderAnswers()
@@ -268,8 +294,11 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
             case .notConfigured: qa.error = "Агент не настроен"
             }
             // the log belongs to the meeting the question was asked in, even if the window moved on
-            try? MeetingChat.append(qa, to: session)
-            guard let self, self.session == session else { return }
+            do { try MeetingChat.append(qa, to: session) } catch {
+                Log.shared.warn("agent: answer not saved to \(session.qaURL.path): \(error)")
+            }
+            guard let self, self.askToken == token else { return }
+            self.askToken = nil
             self.qas.append(qa)
             self.pending = nil
             self.running = nil
@@ -321,8 +350,7 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
                     .paragraphStyle: i == 0 ? NSParagraphStyle.default : gap]))
             }
             if isPending {
-                let s = Int(Date().timeIntervalSince(qa.askedAt))
-                out.append(NSAttributedString(string: "Думаю… \(s) с\n", attributes: [
+                out.append(NSAttributedString(string: "…\n", attributes: [
                     .font: Self.font, .foregroundColor: NSColor.tertiaryLabelColor]))
             } else if let answer = qa.answer {
                 out.append(Self.markdown(answer))
@@ -337,7 +365,10 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
             }
         }
         answersView.textStorage?.setAttributedString(out)
-        answersView.scrollToEndOfDocument(nil)
+        if all.count != renderedCount || pending == nil {   // new question or its answer: show the end
+            answersView.scrollToEndOfDocument(nil)
+        }
+        renderedCount = all.count
     }
 
     private static func meta(of qa: MeetingQA, pending: Bool) -> String {
@@ -358,16 +389,20 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
         }
         let full = NSRange(location: 0, length: parsed.length)
         parsed.addAttribute(.foregroundColor, value: NSColor.labelColor, range: full)
+        parsed.removeAttribute(.link, range: full)   // a link from the transcript is not something to click
         let para = NSMutableParagraphStyle()
         para.lineSpacing = 2
         para.paragraphSpacing = 4
         parsed.addAttribute(.paragraphStyle, value: para, range: full)
-        parsed.enumerateAttribute(.font, in: full) { value, range, _ in
-            let traits = (value as? NSFont)?.fontDescriptor.symbolicTraits ?? []
+        parsed.addAttribute(.font, value: font, range: full)
+        // the parser marks emphasis with presentation intents, not fonts
+        parsed.enumerateAttribute(.inlinePresentationIntent, in: full) { value, range, _ in
+            guard let raw = (value as? NSNumber)?.uintValue else { return }
+            let intent = InlinePresentationIntent(rawValue: raw)
             var f = font
-            if traits.contains(.bold) { f = .systemFont(ofSize: 13, weight: .semibold) }
-            if traits.contains(.monoSpace) { f = .monospacedSystemFont(ofSize: 12, weight: .regular) }
-            if traits.contains(.italic) { f = NSFontManager.shared.convert(f, toHaveTrait: .italicFontMask) }
+            if intent.contains(.stronglyEmphasized) { f = .systemFont(ofSize: 13, weight: .semibold) }
+            if intent.contains(.code) { f = .monospacedSystemFont(ofSize: 12, weight: .regular) }
+            if intent.contains(.emphasized) { f = NSFontManager.shared.convert(f, toHaveTrait: .italicFontMask) }
             parsed.addAttribute(.font, value: f, range: range)
         }
         return parsed
@@ -500,6 +535,8 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
         text.font = Self.font
         text.textContainerInset = NSSize(width: 12, height: 8)
         textView = text
+        scroll.automaticallyAdjustsContentInsets = false
+        scroll.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 34, right: 0)   // room for «Ответы · N»
 
         // sheet
         sheet.boxType = .custom
@@ -592,7 +629,7 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
         input.bezelStyle = .roundedBezel
         input.font = .systemFont(ofSize: 13)
         input.target = self
-        input.action = #selector(askOrStop)
+        input.action = #selector(askFromField)
         input.setContentHuggingPriority(.defaultLow, for: .horizontal)
         contextSwitch.controlSize = .mini
         contextSwitch.target = self
@@ -659,13 +696,15 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
             guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command else {
                 return super.performKeyEquivalent(with: event)
             }
+            // by key position, not by character: on a Russian layout ⌘C types «с»
             let action: Selector?
-            switch event.charactersIgnoringModifiers {
-            case "c": action = #selector(NSText.copy(_:))
-            case "v": action = #selector(NSText.paste(_:))
-            case "x": action = #selector(NSText.cut(_:))
-            case "a": action = #selector(NSText.selectAll(_:))
-            case "w": performClose(nil); return true
+            switch event.keyCode {
+            case 8: action = #selector(NSText.copy(_:))
+            case 9: action = #selector(NSText.paste(_:))
+            case 7: action = #selector(NSText.cut(_:))
+            case 0: action = #selector(NSText.selectAll(_:))
+            case 6: action = Selector(("undo:"))
+            case 13: performClose(nil); return true
             default: action = nil
             }
             if let action, NSApp.sendAction(action, to: nil, from: self) { return true }

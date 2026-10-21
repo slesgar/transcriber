@@ -65,3 +65,30 @@ def test_private_recording_never_gets_a_file(vault, tmp_path, private_dir):
     (d / "qa.jsonl").write_text(qa_line("Что решили?", "Пилот.") + "\n")
     s = Session(d, meta(private=True), State())
     assert write_agent_qa(cfg, s) is None
+
+
+def test_line_separator_inside_an_answer_does_not_split_the_record(tmp_path):
+    (tmp_path / "qa.jsonl").write_text(qa_line("Что решили?", "Пилот. Потом раскат.\u0085Всё.") + "\n")
+    assert read_qa(tmp_path)[0]["answer"] == "Пилот. Потом раскат.\u0085Всё."
+
+
+def test_name_follows_the_pinned_raw_not_the_title(vault, tmp_path):
+    from transcriber.agent_qa import qa_path_for_raw
+    cfg = Config(vault_root=vault)
+    d = tmp_path / "sessions" / "2026-09-15-1430"
+    d.mkdir(parents=True)
+    s = Session(d, meta(), State())
+    write_raw(cfg, s, status_text="финализирован")
+    (d / "qa.jsonl").write_text(qa_line("Что решили?", "Пилот.") + "\n")
+    s.meta.title = "Новая тема"
+    p = write_agent_qa(cfg, s)
+    assert p == qa_path_for_raw(vault / "Raw/Transcripts/Local-2026-09-15-1430-Синк-по-витрине.md")
+    assert p.name == "Agent-2026-09-15-1430-Синк-по-витрине.md"
+
+
+def test_failure_does_not_escape(vault, tmp_path, monkeypatch):
+    from transcriber import agent_qa
+    cfg = Config(vault_root=vault)
+    s = Session(tmp_path, meta(), State())
+    monkeypatch.setattr(agent_qa, "write_agent_qa", lambda *a: (_ for _ in ()).throw(OSError("диск")))
+    assert agent_qa.write_agent_qa_safely(cfg, s) is None

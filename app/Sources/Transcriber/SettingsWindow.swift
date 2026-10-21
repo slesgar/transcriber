@@ -554,11 +554,12 @@ final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
             agentCommand.textColor = .secondaryLabelColor
         } else {
             if presets.isEmpty == false, command.isEmpty {
-                // nothing chosen yet and an agent is installed: offer it rather than an empty field
-                agentPicker.selectItem(at: 0)
-                agentCommand.stringValue = presets[0].command
-                agentCommand.isEditable = false
-                agentCommand.textColor = .secondaryLabelColor
+                // nothing chosen yet: point at the found agent, but the command stays empty until
+                // the owner picks it — saving an unrelated change must not switch an agent on
+                agentPicker.selectItem(withTitle: Self.customTitle)
+                agentCommand.placeholderString = "выбери агента в списке выше"
+                agentCommand.isEditable = true
+                agentCommand.textColor = .labelColor
                 return
             }
             agentPicker.selectItem(withTitle: Self.customTitle)

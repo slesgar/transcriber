@@ -78,7 +78,7 @@ from .quality import junk_reason, prompt_vocabulary, strip_leak_prefix
 from .speakers import label
 from .session import Session, SessionLocked, State, atomic_write_text, session_lock
 from .talk import TalkFile
-from .agent_qa import write_agent_qa
+from .agent_qa import qa_path_for_raw, write_agent_qa_safely
 from .vault import (ensure_stub, is_untouched_stub, note_path, update_stub_participants, write_raw,
                     write_text)
 from .voices import VoiceLibrary, VoiceProfile
@@ -184,7 +184,7 @@ def _refinalize(cfg: Config, session_id: str) -> Path:
     participants = [] if session.meta.private else talk.participants(cfg.talk_bot_patterns)
     p = write_raw(cfg, session, f"финализирован повторно {datetime.now().strftime('%H:%M')}", participants)
     update_stub_participants(cfg, session, participants)
-    write_agent_qa(cfg, session)
+    write_agent_qa_safely(cfg, session)
     session.save_state()
     return p
 
@@ -251,6 +251,10 @@ def _make_private(cfg: Config, session_id: str) -> Path:
     p = _refinalize(cfg, session_id)         # транскрипт перерисовывается без фронт-маттера вольта
     if old_raw is not None and old_raw.exists() and old_raw != p:
         old_raw.unlink()
+    if old_raw is not None:   # вопросы агенту к теперь приватной встрече в вольте не остаются
+        qa = qa_path_for_raw(old_raw)
+        if qa.exists() and qa.parent != p.parent:
+            qa.unlink()
     log.info("%s: приватная запись, файлы в %s", session_id, p.parent)
     return p
 

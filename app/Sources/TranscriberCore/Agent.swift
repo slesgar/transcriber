@@ -79,10 +79,12 @@ public final class AgentRun {
         lock.lock(); self.pid = pid; lock.unlock()
     }
 
+    /// Finish first, then read the pid: a run that is just starting sees `isDone` after `started`
+    /// and stops itself, one already started is stopped here.
     public func cancel() {
-        lock.lock(); let pid = self.pid; lock.unlock()
         once.finish(.cancelled)
-        if pid > 0 { ProcessTree.terminate(pid) }
+        lock.lock(); let pid = self.pid; lock.unlock()
+        if pid > 0 { DispatchQueue.global().async { ProcessTree.terminate(pid) } }   // pgrep off the main thread
     }
 }
 
@@ -263,8 +265,10 @@ enum ProcessTree {
 
 /// Agents the app knows how to call in one-shot mode, found on the owner's PATH. The commands are
 /// the scheme, not an installation value: each runs the agent once, question on stdin, answer on
-/// stdout, read-only — an agent started inside a vault must not edit it, and Claude Code skips the
-/// project settings so the vault's own session hooks (commits, status) do not fire on every question.
+/// stdout, read-only — an agent started inside a vault must not edit it. The transcript is other
+/// people's speech, so nothing it says may reach a tool that acts: Claude Code gets only the three
+/// reading tools, no MCP servers, no settings (no user or vault hooks, no allow rules) and refuses
+/// whatever is not pre-approved; Codex runs in its read-only sandbox.
 public struct AgentPreset: Equatable {
     public let name: String
     public let binary: String
@@ -272,7 +276,7 @@ public struct AgentPreset: Equatable {
 
     public static let known: [AgentPreset] = [
         AgentPreset(name: "Claude Code", binary: "claude",
-                    command: "claude -p --tools Read,Grep,Glob --setting-sources user --no-session-persistence"),
+                    command: "claude -p --tools Read,Grep,Glob --setting-sources \"\" --strict-mcp-config --permission-mode dontAsk --no-session-persistence"),
         AgentPreset(name: "Codex", binary: "codex",
                     command: "codex exec --skip-git-repo-check --ephemeral --sandbox read-only -"),
     ]

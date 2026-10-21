@@ -27,13 +27,22 @@ def qa_filename(meta: Meta) -> str:
     return f"{PREFIX}{date}-{hhmm}-{slug(title_of(meta))[:TITLE_CAP]}.md"
 
 
+def qa_path_for_raw(raw: Path) -> Path:
+    """Пара к закреплённому Raw: смена темы встречи не плодит второй файл вопросов."""
+    stem = raw.stem.removeprefix("Local-")
+    return raw.parent / f"{PREFIX}{stem}.md"
+
+
 def read_qa(session_dir: Path) -> list[dict]:
     """Ответившие вопросы сессии по порядку; битая строка (оборванная запись) пропускается."""
     path = session_dir / QA_FILE
     if not path.exists():
         return []
     items = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    # только \n: ответы агента бывают с U+2028/U+0085, а splitlines() режет строку JSON по ним
+    for line in path.read_text(encoding="utf-8", errors="replace").split("\n"):
+        if not line.strip():
+            continue
         try:
             item = json.loads(line)
         except json.JSONDecodeError:
@@ -82,7 +91,16 @@ def write_agent_qa(cfg: Config, session: Session) -> Path | None:
     first = parts[0].meta
     raw = pinned_raw_path(cfg, session)
     note = Path(session.state.note_path).stem if session.state.note_path else Path(note_filename(first)).stem
-    path = raw.parent / qa_filename(first)
+    path = qa_path_for_raw(raw)
     write_text(cfg, session.meta, path, render_qa(first, raw.stem, note, items))
     log.info("%s: вопросов агенту %d → %s", session.meta.id, len(items), path.name)
     return path
+
+
+def write_agent_qa_safely(cfg: Config, session: Session) -> Path | None:
+    """Файл вопросов — удобство: его сбой не должен стоить встрече финализации и удаления аудио."""
+    try:
+        return write_agent_qa(cfg, session)
+    except Exception:  # noqa: BLE001
+        log.exception("%s: файл вопросов агенту не записан", session.meta.id)
+        return None
