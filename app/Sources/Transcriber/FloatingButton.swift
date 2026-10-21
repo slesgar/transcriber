@@ -104,7 +104,7 @@ final class FloatingButton {
             menu.addItem(item)
         }
         menu.addItem(.separator())
-        let hideItem = NSMenuItem(title: "Скрыть кнопку до конца записи", action: #selector(Actions.hide), keyEquivalent: "")
+        let hideItem = NSMenuItem(title: "Скрыть кружок", action: #selector(Actions.hide), keyEquivalent: "")
         hideItem.target = target
         menu.addItem(hideItem)
         // The target is retained only by the menu items, so it has to outlive the pop-up: `popUp`

@@ -64,6 +64,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         status.onToggle = { [weak self] in self?.toggle() }
         status.onOpenNote = { [weak self] in self?.openNote() }
         status.onOpenSettings = { SettingsWindow.shared.show() }
+        status.onShowButton = { [weak self] in
+            guard let self, case .recording(let dir) = self.controller.state else { return }
+            self.log.info("floating button shown again from the menu")
+            self.showFloating(dir)
+        }
         status.onOpenSessions = { [weak self] in
             guard let self else { return }
             NSWorkspace.shared.open(self.store.root)
@@ -79,6 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         floating.onHide = { [weak self] in
             self?.log.info("floating button hidden for this session")
             self?.floating.hide()
+            self?.status.setButtonHidden(true)
         }
         controller.onStateChange = { [weak self] state in
             DispatchQueue.main.async { self?.render(state) }
@@ -441,10 +447,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             axWatchersStarted = false
         case .recording(let dir):
             status.setRecording(true, detail: dir.id, private: controller.currentIsPrivate)
-            floating.show(private: controller.currentIsPrivate, title: controller.currentTitle,
-                          startedAt: controller.currentStartedAt, session: dir)
+            showFloating(dir)
             startAXWatchers(dir)
         }
+    }
+
+    private func showFloating(_ dir: SessionDir) {
+        floating.show(private: controller.currentIsPrivate, title: controller.currentTitle,
+                      startedAt: controller.currentStartedAt, session: dir)
+        status.setButtonHidden(false)
     }
 
     /// The two read-only watchers over the AX tree of the meeting app, started together because
