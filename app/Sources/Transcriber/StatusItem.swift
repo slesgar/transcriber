@@ -5,6 +5,8 @@ final class StatusItem {
     private let statusLine = NSMenuItem(title: "Ожидание встречи", action: nil, keyEquivalent: "")
     private let toggle = NSMenuItem(title: "Начать запись", action: #selector(toggleAction), keyEquivalent: "r")
     private let openNote = NSMenuItem(title: "Открыть заметку", action: #selector(openNoteAction), keyEquivalent: "o")
+    /// Brings back the floating button hidden with «Скрыть кружок» — the way to the meeting window.
+    private let showButton = NSMenuItem(title: "Показать кружок", action: #selector(showButtonAction), keyEquivalent: "")
     /// Checkbox: the schedule catches the regular appointments, this catches everything else —
     /// one-shot, so it never stays on by accident.
     private let privateNext = NSMenuItem(title: "Следующая запись приватная",
@@ -14,6 +16,7 @@ final class StatusItem {
 
     var onToggle: (() -> Void)?
     var onOpenNote: (() -> Void)?
+    var onShowButton: (() -> Void)?
     var onOpenSettings: (() -> Void)?
     var onOpenSessions: (() -> Void)?
     var onTogglePrivateNext: (() -> Void)?
@@ -24,7 +27,8 @@ final class StatusItem {
         statusLine.isEnabled = false
         menu.addItem(statusLine)
         menu.addItem(.separator())
-        for m in [toggle, privateNext, openNote] { m.target = self; menu.addItem(m) }
+        for m in [toggle, privateNext, openNote, showButton] { m.target = self; menu.addItem(m) }
+        showButton.isHidden = true
         let settings = NSMenuItem(title: "Настройки…", action: #selector(openSettingsAction), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
@@ -48,6 +52,12 @@ final class StatusItem {
         statusLine.title = baseStatus
         toggle.title = recording ? "Остановить запись" : "Начать запись"
         openNote.isEnabled = recording
+        if !recording { showButton.isHidden = true }
+    }
+
+    /// Shown only while a recording runs with its button hidden.
+    func setButtonHidden(_ hidden: Bool) {
+        showButton.isHidden = !hidden
     }
 
     /// The one-shot override is spent by the session that used it, so the checkbox follows the
@@ -84,6 +94,7 @@ final class StatusItem {
     @objc private func toggleAction() { onToggle?() }
     @objc private func privateNextAction() { onTogglePrivateNext?() }
     @objc private func openNoteAction() { onOpenNote?() }
+    @objc private func showButtonAction() { onShowButton?() }
     @objc private func openSettingsAction() { onOpenSettings?() }
     @objc private func openSessionsAction() { onOpenSessions?() }
 }

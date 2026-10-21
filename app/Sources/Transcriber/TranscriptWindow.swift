@@ -507,7 +507,7 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let note = iconButton("note.text", "Открыть заметку встречи", #selector(openNote))
-        let hide = iconButton("eye.slash", "Скрыть кружок до конца записи", #selector(hideButton))
+        let hide = iconButton("eye.slash", "Скрыть кружок — вернуть можно из меню транскрибатора", #selector(hideButton))
         let stop = iconButton("stop.circle", "Остановить запись", #selector(stopRecording))
         stop.contentTintColor = .systemRed
         let bar = NSStackView(views: [pillBox, updatedLabel, spacer, note, hide, stop])
