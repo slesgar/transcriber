@@ -43,8 +43,8 @@ import Testing
     ])
 }
 
-@Test func linesOfOneParagraphJoinAndPipesInsideTextAreNotTables() {
-    #expect(MarkdownBlocks.parse("первая строка\nвторая | с чертой") == [.paragraph("первая строка вторая | с чертой")])
+@Test func linesOfOneParagraphKeepTheirBreaksAndPipesInsideTextAreNotTables() {
+    #expect(MarkdownBlocks.parse("**Кто:** Иван\n**Когда:** пятница") == [.paragraph("**Кто:** Иван\u{2028}**Когда:** пятница")])
     #expect(MarkdownBlocks.parse("| одна строка без разделителя |") == [.paragraph("| одна строка без разделителя |")])
 }
 
@@ -54,5 +54,24 @@ import Testing
 
 @Test func numericCellsAreRecognised() {
     for s in ["31", "−4,5 %", "1 200", "~240", "66"] { #expect(MarkdownBlocks.isNumeric(s), "\(s)") }
-    for s in ["В проде", "Q4", "", "31 параметр"] { #expect(!MarkdownBlocks.isNumeric(s), "\(s)") }
+    for s in ["В проде", "Q4", "", "31 параметр", "2026-10-21"] { #expect(!MarkdownBlocks.isNumeric(s), "\(s)") }
+}
+
+@Test func oneLineFenceIsTextAndInnerFenceWithLanguageDoesNotClose() {
+    #expect(MarkdownBlocks.parse("```select 1```\nдальше") == [.paragraph("```select 1```\u{2028}дальше")])
+    #expect(MarkdownBlocks.parse("```\n```bash\nls\n```") == [.code("```bash\nls")])
+}
+
+@Test func widerRowGrowsTheTable() {
+    #expect(MarkdownBlocks.parse("| a | b |\n|---|---|\n| 1 | 2 | 3 |") ==
+            [.table(header: ["a", "b", ""], alignments: [.left, .left, .left], rows: [["1", "2", "3"]])])
+}
+
+@Test func nestingCountsLevelsNotSpaces() {
+    let blocks = MarkdownBlocks.parse("- a\n    - b\n        - c\n" + String(repeating: " ", count: 40) + "- d")
+    #expect(blocks.map { if case .listItem(_, let d, _) = $0 { return d } else { return -1 } } == [0, 1, 2, 3])
+}
+
+@Test func numberedLineInsideAParagraphStaysText() {
+    #expect(MarkdownBlocks.parse("Встреча перенесена на\n12. декабря") == [.paragraph("Встреча перенесена на\u{2028}12. декабря")])
 }

@@ -18,13 +18,17 @@ public enum MarkdownBlock: Equatable {
 
 public enum MarkdownBlocks {
     public static func parse(_ text: String) -> [MarkdownBlock] {
-        let lines = text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
+        let lines = text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+            .components(separatedBy: "\n")
         var blocks: [MarkdownBlock] = []
         var paragraph: [String] = []
+        var listIndents: [Int] = []   // indents of the open list levels, to count depth whatever the step
         var i = 0
 
+        /// Lines of one paragraph keep their breaks (`**Кто:** …` / `**Когда:** …` are two lines):
+        /// U+2028 breaks the line without starting a new paragraph.
         func flush() {
-            if !paragraph.isEmpty { blocks.append(.paragraph(paragraph.joined(separator: " "))) }
+            if !paragraph.isEmpty { blocks.append(.paragraph(paragraph.joined(separator: lineBreak))) }
             paragraph = []
         }
 
@@ -33,12 +37,13 @@ public enum MarkdownBlocks {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
             if trimmed.isEmpty { flush(); i += 1; continue }
+            if listItem(line) == nil { listIndents = [] }
 
-            if trimmed.hasPrefix("```") {   // fenced code: everything up to the closing fence
+            if isFenceOpen(trimmed) {   // fenced code: everything up to a line of backticks only
                 flush()
                 var code: [String] = []
                 i += 1
-                while i < lines.count, !lines[i].trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+                while i < lines.count, !isFenceClose(lines[i].trimmingCharacters(in: .whitespaces)) {
                     code.append(lines[i]); i += 1
                 }
                 blocks.append(.code(code.joined(separator: "\n")))
@@ -52,22 +57,31 @@ public enum MarkdownBlocks {
 
             if trimmed.hasPrefix("|"), i + 1 < lines.count, let aligns = separator(lines[i + 1]) {
                 flush()
-                let header = cells(trimmed)
+                var header = cells(trimmed)
                 var rows: [[String]] = []
                 i += 2
                 while i < lines.count, lines[i].trimmingCharacters(in: .whitespaces).hasPrefix("|") {
-                    var row = cells(lines[i].trimmingCharacters(in: .whitespaces))
-                    if row.count < header.count { row += Array(repeating: "", count: header.count - row.count) }
-                    rows.append(Array(row.prefix(header.count)))
+                    rows.append(cells(lines[i].trimmingCharacters(in: .whitespaces)))
                     i += 1
                 }
-                let a = aligns.count >= header.count ? Array(aligns.prefix(header.count))
-                    : aligns + Array(repeating: .left, count: header.count - aligns.count)
+                // a row wider than the header keeps its cells: the table grows, nothing is dropped
+                let columns = max(header.count, rows.map(\.count).max() ?? 0)
+                header += Array(repeating: "", count: columns - header.count)
+                rows = rows.map { $0 + Array(repeating: "", count: columns - $0.count) }
+                let a = Array((aligns + Array(repeating: .left, count: max(0, columns - aligns.count))).prefix(columns))
                 blocks.append(.table(header: header, alignments: a, rows: rows))
                 continue
             }
 
-            if let item = listItem(line) { flush(); blocks.append(item); i += 1; continue }
+            if case .listItem(let marker, let indent, let body)? = listItem(line),
+               paragraph.isEmpty || marker == "•" || marker == "1." {   // «12. декабря» mid-paragraph is text
+                flush()
+                while let last = listIndents.last, last > indent { listIndents.removeLast() }
+                if listIndents.last.map({ $0 < indent }) ?? true { listIndents.append(indent) }
+                blocks.append(.listItem(marker: marker, depth: min(listIndents.count - 1, 3), text: body))
+                i += 1
+                continue
+            }
 
             if trimmed.hasPrefix(">") {
                 flush()
@@ -76,7 +90,7 @@ public enum MarkdownBlocks {
                     quote.append(String(lines[i].trimmingCharacters(in: .whitespaces).dropFirst()).trimmingCharacters(in: .whitespaces))
                     i += 1
                 }
-                blocks.append(.quote(quote.joined(separator: " ")))
+                blocks.append(.quote(quote.filter { !$0.isEmpty }.joined(separator: lineBreak)))
                 continue
             }
 
@@ -86,6 +100,15 @@ public enum MarkdownBlocks {
         flush()
         return blocks
     }
+
+    public static let lineBreak = "\u{2028}"
+
+    static func isFenceOpen(_ s: String) -> Bool {
+        guard s.hasPrefix("```") else { return false }
+        return s.dropFirst(3).allSatisfy { $0.isLetter || $0.isNumber || "+-_".contains($0) }
+    }
+
+    static func isFenceClose(_ s: String) -> Bool { s.count >= 3 && s.allSatisfy { $0 == "`" } }
 
     static func heading(_ s: String) -> (Int, String)? {
         let hashes = s.prefix(while: { $0 == "#" }).count
@@ -129,7 +152,7 @@ public enum MarkdownBlocks {
         let indent = line.prefix(while: { $0 == " " || $0 == "\t" })
             .reduce(0) { $0 + ($1 == "\t" ? 4 : 1) }
         let s = line.trimmingCharacters(in: .whitespaces)
-        let depth = indent / 2
+        let depth = indent   // raw indent; parse() turns it into a nesting level
         for bullet in ["- ", "* ", "+ ", "• "] where s.hasPrefix(bullet) {
             return .listItem(marker: "•", depth: depth, text: String(s.dropFirst(bullet.count)))
         }
@@ -148,6 +171,8 @@ public enum MarkdownBlocks {
         let s = cell.trimmingCharacters(in: .whitespaces)
         guard let first = s.first, first.isNumber || "-−+~≈".contains(first) else { return false }
         let allowed = Set("0123456789 \u{00A0}.,%-−+~≈×x")
+        // a date or a phone is not a quantity
+        if s.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil { return false }
         return s.contains(where: \.isNumber) && s.allSatisfy { allowed.contains($0) }
     }
 }

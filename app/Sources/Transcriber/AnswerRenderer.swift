@@ -9,9 +9,15 @@ enum AnswerRenderer {
     static let font = NSFont.systemFont(ofSize: 13)
     static let small = NSFont.systemFont(ofSize: 12)
 
+    /// Bidi overrides could visually reorder digits in a table: an answer has no use for them.
+    static let bidi = CharacterSet(charactersIn: "\u{202A}\u{202B}\u{202C}\u{202D}\u{202E}\u{2066}\u{2067}\u{2068}\u{2069}")
+    static let maxColumns = 6
+    static let maxRows = 60
+
     static func render(_ text: String) -> NSAttributedString {
         let out = NSMutableAttributedString()
-        let blocks = MarkdownBlocks.parse(text)
+        let clean = String(String.UnicodeScalarView(text.unicodeScalars.filter { !bidi.contains($0) }))
+        let blocks = MarkdownBlocks.parse(clean)
         for (i, block) in blocks.enumerated() {
             let last = i == blocks.count - 1
             // text right under a table needs air: the table's bottom border sits on the baseline
@@ -33,18 +39,13 @@ enum AnswerRenderer {
                     .font: font, .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: p])
                 line.append(inline(s, paragraph: p))
                 out.append(line)
-            case .table(let header, let alignments, let rows):
+            case .table(let header, let alignments, let rows) where header.count <= maxColumns && rows.count <= maxRows:
                 out.append(table(header: header, alignments: alignments, rows: rows))
+            case .table(let header, _, let rows):   // too wide or long for a table in a narrow sheet
+                let lines = ([header] + rows).map { $0.joined(separator: " · ") }
+                out.append(codeBlock(lines.joined(separator: "\n")))
             case .code(let s):
-                let block = NSTextBlock()
-                block.backgroundColor = NSColor.quaternaryLabelColor.withAlphaComponent(0.12)
-                block.setWidth(8, type: .absoluteValueType, for: .padding)
-                block.setValue(100, type: .percentageValueType, for: .width)   // without it the block collapses
-                let p = para(after: 6)
-                p.textBlocks = [block]
-                out.append(NSAttributedString(string: s, attributes: [
-                    .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
-                    .foregroundColor: NSColor.labelColor, .paragraphStyle: p]))
+                out.append(codeBlock(s))
             case .quote(let s):
                 let bar = NSTextBlock()
                 bar.setWidth(2, type: .absoluteValueType, for: .border, edge: .minX)
@@ -57,14 +58,32 @@ enum AnswerRenderer {
                 p.textBlocks = [bar]
                 out.append(inline(s, color: .secondaryLabelColor, paragraph: p))
             case .rule:
-                let p = para(before: 2, after: 6)
-                out.append(NSAttributedString(string: "\u{00A0}", attributes: [
-                    .font: NSFont.systemFont(ofSize: 4), .paragraphStyle: p,
-                    .strikethroughStyle: NSUnderlineStyle.single.rawValue, .strikethroughColor: NSColor.separatorColor]))
+                let line = NSTextBlock()
+                line.setWidth(0.5, type: .absoluteValueType, for: .border, edge: .maxY)
+                line.setBorderColor(.separatorColor, for: .maxY)
+                line.setValue(100, type: .percentageValueType, for: .width)
+                let p = para(before: 2, after: 8)
+                p.textBlocks = [line]
+                out.append(NSAttributedString(string: "\u{00A0}", attributes: [.font: NSFont.systemFont(ofSize: 2), .paragraphStyle: p]))
             }
-            if !last { out.append(NSAttributedString(string: "\n", attributes: [.font: font])) }
+            // a table ends with its own newline: one more would leave an empty, unstyled line
+            var endsWithTable = false
+            if case .table(let h, _, let r) = block, h.count <= maxColumns, r.count <= maxRows { endsWithTable = true }
+            if !last && !endsWithTable { out.append(NSAttributedString(string: "\n", attributes: [.font: font])) }
         }
         return out
+    }
+
+    private static func codeBlock(_ s: String) -> NSAttributedString {
+        let block = NSTextBlock()
+        block.backgroundColor = NSColor.quaternaryLabelColor.withAlphaComponent(0.12)
+        block.setWidth(8, type: .absoluteValueType, for: .padding)
+        block.setValue(100, type: .percentageValueType, for: .width)   // without it the block collapses
+        let p = para(after: 6)
+        p.textBlocks = [block]
+        return NSAttributedString(string: s.isEmpty ? " " : s, attributes: [
+            .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
+            .foregroundColor: NSColor.labelColor, .paragraphStyle: p])
     }
 
     private static func para(before: CGFloat = 0, after: CGFloat) -> NSMutableParagraphStyle {
@@ -106,11 +125,14 @@ enum AnswerRenderer {
         table.hidesEmptyCells = false
         table.setContentWidth(100, type: .percentageValueType)
         let numeric = (0..<header.count).map { c in
-            !rows.isEmpty && rows.allSatisfy { $0[c].isEmpty || MarkdownBlocks.isNumeric($0[c]) }
+            rows.contains { !$0[c].isEmpty } && rows.allSatisfy { $0[c].isEmpty || MarkdownBlocks.isNumeric($0[c]) }
         }
         // numbers need little room; the text columns share what is left, so labels do not wrap
         // a number column is as wide as its header asks (about 2% per letter of a 460 pt sheet)
-        let shares: [CGFloat] = header.map { min(max(CGFloat($0.count) * 1.75 + 6, 12), 28) }
+        let widest = (0..<header.count).map { c in ([header] + rows).map { $0[c].count }.max() ?? 0 }
+        var shares: [CGFloat] = widest.map { min(max(CGFloat($0) * 1.75 + 6, 12), 28) }
+        let fixed = zip(shares, numeric).filter { $0.1 }.map(\.0).reduce(0, +)
+        if fixed > 70 { shares = shares.map { $0 * 70 / fixed } }   // numbers never squeeze the labels out
         let textColumns = numeric.filter { !$0 }.count
         let numericTotal = zip(shares, numeric).filter { $0.1 }.map(\.0).reduce(0, +)
         let textShare = textColumns == 0 ? 0 : max(100 - numericTotal, 30) / CGFloat(textColumns)
@@ -135,7 +157,7 @@ enum AnswerRenderer {
                 case .right: p.alignment = .right
                 case .left: p.alignment = numeric[c] && r > 0 ? .right : .left
                 }
-                if r == 0 && numeric[c] && alignments[c] == .left { p.alignment = .right }
+                if r == 0 && numeric[c] && (c >= alignments.count || alignments[c] == .left) { p.alignment = .right }
                 let base: NSFont = r == 0 ? .systemFont(ofSize: 12, weight: .semibold)
                     : (numeric[c] ? .monospacedDigitSystemFont(ofSize: 12, weight: .regular) : small)
                 let cellText = NSMutableAttributedString(attributedString: inline(cell, base: base, paragraph: p))
@@ -143,8 +165,6 @@ enum AnswerRenderer {
                 out.append(cellText)
             }
         }
-        // the table's last newline ends the block; the caller adds the separator before the next block
-        if out.length > 0, out.string.hasSuffix("\n") { out.deleteCharacters(in: NSRange(location: out.length - 1, length: 1)) }
         return out
     }
 }
