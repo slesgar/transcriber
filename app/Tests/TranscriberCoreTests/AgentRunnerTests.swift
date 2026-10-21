@@ -59,3 +59,22 @@ private func run(_ command: String, prompt: String = "", cwd: URL? = nil, timeou
     #expect(ShellPath.parse("нет маркера") == nil)
     #expect(ShellPath.parse("\n__TRANSCRIBER_PATH__") == nil)
 }
+
+/// Агент, не дочитавший вопрос, не роняет приложение (SIGPIPE) — вопрос больше буфера канала.
+@Test func agentThatIgnoresAHugePromptDoesNotKillUs() async {
+    let prompt = String(repeating: "встреча ", count: 200_000)
+    #expect(await run("echo готов", prompt: prompt) == .answer("готов"))
+}
+
+/// Внуки команды не держат вывод после таймаута: ответ «не успел» приходит вовремя.
+@Test func timeoutStopsGrandchildrenToo() async {
+    _ = ShellPath.discovered
+    let started = Date()
+    #expect(await run("(sleep 30; echo поздно) | cat", prompt: String(repeating: "x", count: 200_000), timeout: 0.5) == .timedOut)
+    #expect(Date().timeIntervalSince(started) < 4)
+}
+
+@Test func mistypedAgentKeyCostsOnlyThatKey() throws {
+    let data = Data(#"{"command": "agent-cli", "timeout_s": "90"}"#.utf8)
+    #expect(try JSONDecoder().decode(AgentConfig.self, from: data) == AgentConfig(command: "agent-cli", contextDir: "", timeoutS: 180))
+}

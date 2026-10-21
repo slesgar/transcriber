@@ -29,6 +29,10 @@ final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
     // Приватность
     private let privateApps = NSTextField()
     private let windowRows = NSStackView()
+    /// Windows from the file the rows cannot show (a weekday outside 1…7, an unreadable time):
+    /// saved back untouched, so opening and saving the window never turns a dead rule into a live one.
+    private var unreadableWindows: [PrivateWindow] = []
+    private let unreadableNote = NSTextField(wrappingLabelWithString: "")
     // Агент
     private let agentCommand = NSTextField()
     private let contextDir = NSTextField()
@@ -141,6 +145,25 @@ final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
         windowRows.orientation = .vertical
         windowRows.alignment = .leading
         windowRows.spacing = 6
+        unreadableNote.font = .systemFont(ofSize: 11)
+        unreadableNote.textColor = .systemOrange
+        unreadableNote.preferredMaxLayoutWidth = 400
+        let scroll = NSScrollView()
+        scroll.documentView = windowRows
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.drawsBackground = false
+        scroll.borderType = .noBorder
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        windowRows.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            scroll.widthAnchor.constraint(equalToConstant: 400),
+            scroll.heightAnchor.constraint(equalToConstant: 132),   // ~4 rows; more scroll
+            windowRows.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor),
+            windowRows.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
+            windowRows.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
+        ])
+        scroll.contentView.postsBoundsChangedNotifications = false
         let add = smallButton("Добавить окно", #selector(addWindowRow))
         add.image = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)
         add.imagePosition = .imageLeading
@@ -149,7 +172,7 @@ final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
                 row("Приложения", privateApps, note: "Bundle id через запятую: запись из них уходит в приватную папку."),
             ]),
             group("Окна приватности", rows: [
-                row("", vstack([windowRows, add], spacing: 8),
+                row("", vstack([scroll, add, unreadableNote], spacing: 8),
                     note: "Запись, начатая в это время, уходит в приватную папку. Толк и хосты встреч всегда рабочие."),
             ]),
         ])
@@ -371,7 +394,7 @@ final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
         r.spacing = 8
         r.alignment = .centerY
         r.day.addItems(withTitles: Self.weekdays.map(\.0))
-        r.day.selectItem(at: Self.weekdays.firstIndex { $0.1 == w.weekday } ?? 0)
+        r.day.selectItem(at: Self.weekdays.firstIndex { $0.1 == w.weekday } ?? 0)   // fill() passes valid ones only
         for (picker, value) in [(r.from, w.from), (r.to, w.to)] {
             picker.datePickerStyle = .textFieldAndStepper
             picker.datePickerElements = .hourMinute
@@ -399,7 +422,7 @@ final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
     }
 
     private func collectWindows() -> [PrivateWindow] {
-        windowRows.arrangedSubviews.compactMap { $0 as? WindowRow }.map { r in
+        unreadableWindows + windowRows.arrangedSubviews.compactMap { $0 as? WindowRow }.map { r in
             PrivateWindow(weekday: Self.weekdays[max(r.day.indexOfSelectedItem, 0)].1,
                           from: Self.hhmm.string(from: r.from.dateValue), to: Self.hhmm.string(from: r.to.dateValue))
         }
@@ -419,7 +442,12 @@ final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
         keepAudio.state = s.keepAudio ? .on : .off
         privateApps.stringValue = s.privateApps.joined(separator: ", ")
         for v in windowRows.arrangedSubviews { windowRows.removeArrangedSubview(v); v.removeFromSuperview() }
-        s.privateWindows.forEach(appendWindowRow)
+        s.privateWindows.filter(\.isValid).forEach(appendWindowRow)
+        unreadableWindows = s.privateWindows.filter { !$0.isValid }
+        unreadableNote.stringValue = unreadableWindows.isEmpty ? "" :
+            "В файле есть окна, которые не читаются (\(unreadableWindows.map(\.line).joined(separator: "; "))): "
+            + "транскрибатор их пропускает, окно сохранит их как есть — поправь в app-config.json."
+        unreadableNote.isHidden = unreadableWindows.isEmpty
         agentCommand.stringValue = s.agent.command
         contextDir.stringValue = s.agent.contextDir
         timeout.integerValue = s.agent.timeoutS

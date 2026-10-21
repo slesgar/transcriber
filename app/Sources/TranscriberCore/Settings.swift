@@ -52,7 +52,7 @@ public struct Settings: Equatable {
         var errors = required.filter { $0.1.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.map(\.0)
         for (name, value) in [("Папка транскриптов", rawSubdir), ("Папка заметок встреч", meetingsSubdir)] {
             let v = value.trimmingCharacters(in: .whitespaces)
-            if v.hasPrefix("/") || v.hasPrefix("~") { errors.append("\(name) — путь внутри вольта, без / и ~ в начале") }
+            if v.hasPrefix("/") || v.hasPrefix("~") || v.split(separator: "/").contains("..") { errors.append("\(name) — путь внутри вольта, без / и ~ в начале") }
         }
         if agent.timeoutS <= 0 { errors.append("Сколько ждать ответа агента — больше нуля") }
         return errors
@@ -110,7 +110,7 @@ public enum SettingsStore {
             privateApps: rules.apps,
             rawSubdir: yamlValue(yaml, key: "raw_subdir") ?? defaultRawSubdir,
             meetingsSubdir: yamlValue(yaml, key: "meetings_subdir") ?? defaultMeetingsSubdir,
-            keepAudio: yamlValue(yaml, key: "keep_audio").map(yamlBool) ?? defaultKeepAudio,
+            keepAudio: yamlValue(yaml, key: "keep_audio").flatMap(yamlBool) ?? defaultKeepAudio,
             talkEnabled: talkEnabled(appConfig),
             agent: AgentConfig.load(from: appConfig))
     }
@@ -125,9 +125,14 @@ public enum SettingsStore {
         return enabled
     }
 
-    /// YAML 1.1 booleans as PyYAML reads them.
-    static func yamlBool(_ value: String) -> Bool {
-        ["true", "yes", "on", "y"].contains(value.lowercased())
+    /// Exactly the plain scalars PyYAML resolves to a boolean; anything else (a quoted "false",
+    /// `tRue`) is not a boolean to the worker, so the app does not pretend it is one.
+    static func yamlBool(_ value: String) -> Bool? {
+        let truthy = ["true", "True", "TRUE", "yes", "Yes", "YES", "on", "On", "ON"]
+        let falsy = ["false", "False", "FALSE", "no", "No", "NO", "off", "Off", "OFF"]
+        if truthy.contains(value) { return true }
+        if falsy.contains(value) { return false }
+        return nil
     }
 
     /// Creates the data directory if needed; each file is written atomically. A broken
@@ -174,12 +179,34 @@ public enum SettingsStore {
         for (key, value) in literals {
             let line = "\(key): \(value)"
             if let range = keyLineRange(text, key: key) {
-                text.replaceSubrange(range, with: line)
+                text.replaceSubrange(range, with: line + trailingComment(String(text[range])))
             } else {
                 text += (text.isEmpty || text.hasSuffix("\n") ? "" : "\n") + line + "\n"
             }
         }
         return text
+    }
+
+    /// The `   # …` tail of a `key: value` line, spaces included; a `#` inside quotes is not one.
+    static func trailingComment(_ line: String) -> String {
+        guard let colon = line.firstIndex(of: ":") else { return "" }
+        var quote: Character?
+        var escaped = false
+        var i = line.index(after: colon)
+        while i < line.endIndex {
+            let c = line[i]
+            if let q = quote {
+                if escaped { escaped = false } else if c == "\\" && q == "\"" { escaped = true } else if c == q { quote = nil }
+            } else if c == "\"" || c == "'" {
+                quote = c
+            } else if c == "#", i > line.startIndex, line[line.index(before: i)].isWhitespace {
+                var start = line.index(before: i)
+                while start > colon, line[line.index(before: start)].isWhitespace { start = line.index(before: start) }
+                return String(line[start...])
+            }
+            i = line.index(after: i)
+        }
+        return ""
     }
 
     /// The whole first `^key:` line, without its newline; a key inside a comment never matches.

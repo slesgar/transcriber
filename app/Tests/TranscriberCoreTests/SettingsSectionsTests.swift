@@ -32,7 +32,7 @@ private func tempDir() -> URL {
     #expect(SettingsStore.load(appConfig: json, workerConfig: yaml) == s)
 
     let text = try String(contentsOf: yaml)
-    #expect(text.contains("keep_audio: false\n")); #expect(text.contains("speaker_similarity: 0.4"))
+    #expect(text.contains("keep_audio: false   # аудио\n")); #expect(text.contains("speaker_similarity: 0.4"))
     #expect(text.contains("raw_subdir: \"Notes/Raw\"")); #expect(text.hasPrefix("# шапка\n"))
     let obj = try JSONSerialization.jsonObject(with: Data(contentsOf: json)) as! [String: Any]
     let talk = obj["talk"] as! [String: Any]
@@ -80,4 +80,31 @@ private func tempDir() -> URL {
     #expect(FolderStatus.check("  ") == .empty)
     #expect(FolderStatus.resolve("~/x", inside: nil) == FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("x").path)
     #expect(FolderStatus.resolve("Raw/T", inside: "~/V") == FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("V/Raw/T").path)
+}
+
+@Test func dotDotCannotLeaveTheVault() {
+    var s = Settings(ownerName: "Анна", ownerTalkName: "", vaultRoot: "~/V", privateDir: "~/P",
+                     workHosts: [], privateWindows: [], privateApps: [])
+    s.rawSubdir = "a/../../b"
+    #expect(s.validationErrors() == ["Папка транскриптов — путь внутри вольта, без / и ~ в начале"])
+    s.rawSubdir = "Raw..old/T"
+    #expect(s.validationErrors().isEmpty)
+}
+
+@Test func onlyPyYAMLBooleansAreBooleans() {
+    #expect(SettingsStore.yamlBool("True") == true); #expect(SettingsStore.yamlBool("off") == false)
+    #expect(SettingsStore.yamlBool("y") == nil); #expect(SettingsStore.yamlBool("tRue") == nil)
+}
+
+@Test func trailingCommentSurvivesAndHashInQuotesIsNotOne() {
+    #expect(SettingsStore.trailingComment("owner_name: Owner   # кто") == "   # кто")
+    #expect(SettingsStore.trailingComment(#"owner_name: "a # b""#) == "")
+    #expect(SettingsStore.trailingComment(#"owner_name: "a \" # b" # c"#) == " # c")
+    #expect(SettingsStore.trailingComment("x: 1") == "")
+}
+
+@Test func windowValidityMatchesTheParser() {
+    #expect(PrivateWindow(weekday: 3, from: "12:00", to: "12:50").isValid)
+    #expect(!PrivateWindow(weekday: 9, from: "12:00", to: "12:50").isValid)
+    #expect(!PrivateWindow(weekday: 3, from: "полдень", to: "12:50").isValid)
 }

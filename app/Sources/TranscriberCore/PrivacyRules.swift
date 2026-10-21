@@ -27,6 +27,9 @@ public struct PrivateWindow: Codable, Equatable {
         return PrivateWindow(weekday: weekday, from: from, to: to)
     }
 
+    /// A weekday in 1…7 and two readable times — the rest is a window `PrivacyRules` skips.
+    public var isValid: Bool { PrivateWindow.parse(line: line) != nil }
+
     /// The inverse of `parse(line:)`.
     public var line: String { "\(weekday) \(from)-\(to)" }
 }
