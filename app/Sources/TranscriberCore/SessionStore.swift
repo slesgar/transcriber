@@ -10,6 +10,15 @@ public struct SessionDir: Equatable {
     public var stopURL: URL { url.appendingPathComponent("STOP") }
     public var micURL: URL { url.appendingPathComponent("mic.pcm") }
     public var sysURL: URL { url.appendingPathComponent("sys.pcm") }
+    /// Questions to the owner's agent and its answers, a JSON line each (`MeetingChat`).
+    public var qaURL: URL { url.appendingPathComponent("qa.jsonl") }
+
+    /// `meta.json` says the recording is private: no agent, nothing leaves the private folder.
+    public func isPrivate() -> Bool {
+        guard let data = try? Data(contentsOf: metaURL),
+              let meta = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return false }
+        return meta["private"] as? Bool ?? false
+    }
 
     public func requestStop() throws {
         if !FileManager.default.fileExists(atPath: stopURL.path) {

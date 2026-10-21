@@ -223,7 +223,8 @@ if let i = CommandLine.arguments.firstIndex(of: "--prompt-test") {
 
 /// `Transcriber --transcript-test <session dir> [seconds] [--transcript-png <path>]` opens the live
 /// transcript window on an existing session dir (a fake one is enough: `state.json` with `raw_path`)
-/// for a visual check, then exits.
+/// for a visual check, then exits. `--transcript-answers` opens the answers sheet over it (the
+/// session's `qa.jsonl` is what it shows).
 if let i = CommandLine.arguments.firstIndex(of: "--transcript-test"),
    let path = CommandLine.arguments.dropFirst(i + 1).first {
     let seconds = Double(CommandLine.arguments.dropFirst(i + 2).first ?? "8") ?? 8
@@ -236,6 +237,9 @@ if let i = CommandLine.arguments.firstIndex(of: "--transcript-test"),
     DispatchQueue.main.async {
         window.show(session: SessionDir(url: URL(fileURLWithPath: path)), title: "Тестовая встреча",
                     startedAt: Date().addingTimeInterval(-754), near: nil)
+    }
+    if CommandLine.arguments.contains("--transcript-answers") {   // the sheet as after a question
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { window.openAnswersForSnapshot() }
     }
     if let j = CommandLine.arguments.firstIndex(of: "--transcript-png"), let png = CommandLine.arguments.dropFirst(j + 1).first {
         DispatchQueue.main.asyncAfter(deadline: .now() + max(1, seconds - 0.5)) { window.snapshot(to: URL(fileURLWithPath: png)) }

@@ -35,6 +35,10 @@ final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
     private let unreadableNote = NSTextField(wrappingLabelWithString: "")
     // Агент
     private let agentCommand = NSTextField()
+    /// Agents found on the owner's PATH, then «Своя команда…»; picking one fills the command.
+    private let agentPicker = NSPopUpButton()
+    private var presets: [AgentPreset] = []
+    private static let customTitle = "Своя команда…"
     private let contextDir = NSTextField()
     private let contextStatus = SettingsWindow.statusLabel()
     private let timeout = NSTextField()
@@ -179,7 +183,10 @@ final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
     }
 
     private func agentSection() -> NSView {
-        agentCommand.placeholderString = "claude -p   или   codex exec"
+        agentCommand.placeholderString = "my-agent --print"
+        agentPicker.target = self
+        agentPicker.action = #selector(pickAgent)
+        rebuildPicker(found: [])
         contextDir.delegate = self
         timeout.formatter = { let f = NumberFormatter(); f.minimum = 1; f.maximum = 3600; f.allowsFloats = false; return f }()
         timeout.alignment = .right
@@ -200,6 +207,8 @@ final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
         checkResult.preferredMaxLayoutWidth = 380
         return column([
             group("Свой агент", rows: [
+                row("Агент", agentPicker,
+                    note: "Найденные у тебя агенты уже с нужной командой: отвечают один раз и ничего не меняют в файлах."),
                 row("Команда", agentCommand,
                     note: "Вопрос с текстом встречи уходит команде на вход, ответ читается с её вывода. Пусто — агент выключен."),
                 row("", hstack([checkButton, checkResult])),
@@ -449,6 +458,12 @@ final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
             + "транскрибатор их пропускает, окно сохранит их как есть — поправь в app-config.json."
         unreadableNote.isHidden = unreadableWindows.isEmpty
         agentCommand.stringValue = s.agent.command
+        syncPicker()
+        // PATH of the owner's shell may take seconds the first time: the list fills in when ready
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let found = AgentPreset.discover(path: ShellPath.discovered)
+            DispatchQueue.main.async { self?.rebuildPicker(found: found) }
+        }
         contextDir.stringValue = s.agent.contextDir
         timeout.integerValue = s.agent.timeoutS
         timeoutStepper.integerValue = s.agent.timeoutS
@@ -521,6 +536,58 @@ final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
         NSWorkspace.shared.activateFileViewerSelecting([AppPaths.dataDir])
     }
 
+    private func rebuildPicker(found: [AgentPreset]) {
+        presets = found
+        agentPicker.removeAllItems()
+        agentPicker.addItems(withTitles: found.map(\.name))
+        if !found.isEmpty { agentPicker.menu?.addItem(.separator()) }
+        agentPicker.addItem(withTitle: Self.customTitle)
+        syncPicker()
+    }
+
+    /// The picker follows the command: a preset's exact command selects it, anything else is «своя».
+    private func syncPicker() {
+        let command = agentCommand.stringValue.trimmingCharacters(in: .whitespaces)
+        if let i = presets.firstIndex(where: { $0.command == command }) {
+            agentPicker.selectItem(at: i)
+            agentCommand.isEditable = false
+            agentCommand.textColor = .secondaryLabelColor
+        } else {
+            if presets.isEmpty == false, command.isEmpty {
+                // nothing chosen yet and an agent is installed: offer it rather than an empty field
+                agentPicker.selectItem(at: 0)
+                agentCommand.stringValue = presets[0].command
+                agentCommand.isEditable = false
+                agentCommand.textColor = .secondaryLabelColor
+                return
+            }
+            agentPicker.selectItem(withTitle: Self.customTitle)
+            agentCommand.isEditable = true
+            agentCommand.textColor = .labelColor
+        }
+    }
+
+    @objc private func pickAgent() {
+        let i = agentPicker.indexOfSelectedItem
+        if i >= 0, i < presets.count {
+            agentCommand.stringValue = presets[i].command
+            agentCommand.isEditable = false
+            agentCommand.textColor = .secondaryLabelColor
+        } else {
+            if AgentPreset.matching(agentCommand.stringValue) != nil { agentCommand.stringValue = "" }
+            agentCommand.isEditable = true
+            agentCommand.textColor = .labelColor
+            window?.makeFirstResponder(agentCommand)
+        }
+        checkResult.stringValue = ""
+    }
+
+    /// Opens the window on the «Агент» section — from the meeting window when no agent is set.
+    func showAgent() {
+        show()
+        tabs.selectedTabViewItemIndex = tabs.tabViewItems.count - 1
+    }
+
     @objc private func stepTimeout() { timeout.integerValue = timeoutStepper.integerValue }
 
     /// Runs the typed command once with a question that carries no meeting data.
@@ -545,6 +612,8 @@ final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
             case .timedOut:
                 self.checkResult.textColor = .systemRed
                 self.checkResult.stringValue = "Не ответил за \(secs) с"
+            case .cancelled:
+                self.checkResult.stringValue = ""
             case .notConfigured:
                 self.checkResult.textColor = .systemOrange
                 self.checkResult.stringValue = "Сначала впиши команду"

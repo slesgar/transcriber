@@ -78,6 +78,7 @@ from .quality import junk_reason, prompt_vocabulary, strip_leak_prefix
 from .speakers import label
 from .session import Session, SessionLocked, State, atomic_write_text, session_lock
 from .talk import TalkFile
+from .agent_qa import write_agent_qa
 from .vault import (ensure_stub, is_untouched_stub, note_path, update_stub_participants, write_raw,
                     write_text)
 from .voices import VoiceLibrary, VoiceProfile
@@ -183,6 +184,7 @@ def _refinalize(cfg: Config, session_id: str) -> Path:
     participants = [] if session.meta.private else talk.participants(cfg.talk_bot_patterns)
     p = write_raw(cfg, session, f"финализирован повторно {datetime.now().strftime('%H:%M')}", participants)
     update_stub_participants(cfg, session, participants)
+    write_agent_qa(cfg, session)
     session.save_state()
     return p
 
