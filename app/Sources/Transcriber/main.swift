@@ -244,6 +244,22 @@ if let i = CommandLine.arguments.firstIndex(of: "--transcript-test"),
     app.run()
 }
 
+/// `Transcriber --settings-test <dir> [seconds]` opens «Настройки…» on the current data directory
+/// (`TRANSCRIBER_DATA` points it at a demo one), writes every section as `settings-<n>.png` into
+/// `<dir>` and exits. Nothing is saved.
+if let i = CommandLine.arguments.firstIndex(of: "--settings-test"),
+   let path = CommandLine.arguments.dropFirst(i + 1).first {
+    let seconds = Double(CommandLine.arguments.dropFirst(i + 2).first ?? "3") ?? 3
+    let app = NSApplication.shared
+    app.setActivationPolicy(.accessory)
+    DispatchQueue.main.async { SettingsWindow.shared.show() }
+    DispatchQueue.main.asyncAfter(deadline: .now() + max(1, seconds - 0.5)) {
+        SettingsWindow.shared.snapshots(to: URL(fileURLWithPath: path))
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { exit(0) }
+    app.run()
+}
+
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

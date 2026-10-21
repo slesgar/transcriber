@@ -62,10 +62,11 @@ public struct TalkConfig: Codable, Equatable {
     }
 
     /// The block as it should read in the file, indented one level.
+    static let comment = "наблюдение за сеткой участников Толка на протяжении всей НЕприватной "
+        + "записи: кто в звонке, у кого включён микрофон и кто говорит, строкой JSON на "
+        + "каждое изменение в talk.jsonl рядом со звуком сессии. enabled: false выключает."
+
     static func fragment(_ config: TalkConfig, indent: String = "  ") -> String {
-        let comment = "наблюдение за сеткой участников Толка на протяжении всей НЕприватной "
-            + "записи: кто в звонке, у кого включён микрофон и кто говорит, строкой JSON на "
-            + "каждое изменение в talk.jsonl рядом со звуком сессии. enabled: false выключает."
         return """
         \(indent)"talk": {
         \(indent)\(indent)"_comment": "\(comment)",

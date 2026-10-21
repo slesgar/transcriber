@@ -1,30 +1,55 @@
 import AppKit
 import TranscriberCore
 
-/// «Настройки…»: the owner, the two paths, meeting hosts and the privacy rules on one form.
-/// Saving writes `config.yaml` and `app-config.json` through `SettingsStore`; the worker re-reads
-/// its config when the next session starts (воркер перечитывает конфиг при старте следующей
-/// сессии), the app at its next read, so nothing has to be restarted.
-final class SettingsWindow: NSWindowController {
+/// «Настройки…»: five sections on a toolbar (Владелец · Куда пишет · Запись · Приватность · Агент).
+/// Every section carries the same «Отмена / Сохранить»: saving takes the whole window and writes
+/// `config.yaml` and `app-config.json` through `SettingsStore`; the worker re-reads its config when
+/// the next session starts (воркер перечитывает конфиг при старте следующей сессии), the app at its
+/// next read, so nothing has to be restarted. Thresholds and the owner-thoughts heading stay in the
+/// files: the first are tuned by the quality bench, the second is looked up verbatim by the vault.
+final class SettingsWindow: NSWindowController, NSTextFieldDelegate {
     static let shared = SettingsWindow()
 
+    // Владелец
     private let ownerName = NSTextField()
     private let ownerTalkName = NSTextField()
+    // Куда пишет
     private let vaultRoot = NSTextField()
+    private let rawSubdir = NSTextField()
+    private let meetingsSubdir = NSTextField()
     private let privateDir = NSTextField()
+    private let vaultStatus = SettingsWindow.statusLabel()
+    private let rawStatus = SettingsWindow.statusLabel()
+    private let meetingsStatus = SettingsWindow.statusLabel()
+    private let privateStatus = SettingsWindow.statusLabel()
+    // Запись
     private let workHosts = NSTextField()
+    private let talkEnabled = NSButton(checkboxWithTitle: "Следить за участниками Толка", target: nil, action: nil)
+    private let keepAudio = NSButton(checkboxWithTitle: "Хранить аудио после распознавания", target: nil, action: nil)
+    // Приватность
     private let privateApps = NSTextField()
-    /// `scrollableTextView()` hands back a scroll view with the text view already sized to track it.
-    private let windowsScroll = NSTextView.scrollableTextView()
-    private var windowsView: NSTextView { windowsScroll.documentView as! NSTextView }
+    private let windowRows = NSStackView()
+    // Агент
+    private let agentCommand = NSTextField()
+    private let contextDir = NSTextField()
+    private let contextStatus = SettingsWindow.statusLabel()
+    private let timeout = NSTextField()
+    private let timeoutStepper = NSStepper()
+    private let checkResult = NSTextField(wrappingLabelWithString: "")
+    private let checkButton = NSButton(title: "Проверить", target: nil, action: nil)
+
+    private let tabs = NSTabViewController()
+    static let size = NSSize(width: 640, height: 470)
 
     private init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 420),
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: Self.size),
                               styleMask: [.titled, .closable], backing: .buffered, defer: true)
-        window.title = "Настройки"
         window.isReleasedWhenClosed = false
+        window.toolbarStyle = .preference
         super.init(window: window)
-        buildContent(in: window)
+        build()
+        window.contentViewController = tabs
+        window.setContentSize(Self.size)
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -39,106 +64,390 @@ final class SettingsWindow: NSWindowController {
         window?.makeKeyAndOrderFront(nil)
     }
 
-    private func buildContent(in window: NSWindow) {
-        for field in [ownerName, ownerTalkName, vaultRoot, privateDir, workHosts, privateApps] {
-            field.translatesAutoresizingMaskIntoConstraints = false
-            field.widthAnchor.constraint(greaterThanOrEqualToConstant: 380).isActive = true
+    // MARK: - Sections
+
+    private func build() {
+        tabs.tabStyle = .toolbar
+        tabs.transitionOptions = []
+        let sections: [(String, String, NSView)] = [
+            ("Владелец", "person.crop.circle", ownerSection()),
+            ("Куда пишет", "folder", pathsSection()),
+            ("Запись", "mic", recordingSection()),
+            ("Приватность", "lock", privacySection()),
+            ("Агент", "sparkles", agentSection()),
+        ]
+        for (title, symbol, content) in sections {
+            let vc = NSViewController()
+            vc.title = title
+            vc.view = pane(content)
+            let item = NSTabViewItem(viewController: vc)
+            item.label = title
+            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
+            tabs.addTabViewItem(item)
         }
-        workHosts.placeholderString = "talk.example.com, meet.example.com"
-        privateApps.placeholderString = "com.example.chat"
+    }
 
-        windowsView.isRichText = false
-        windowsView.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-        windowsView.isAutomaticQuoteSubstitutionEnabled = false
-        windowsView.isAutomaticDashSubstitutionEnabled = false
-        windowsView.isAutomaticTextReplacementEnabled = false
-        let scroll = windowsScroll
-        scroll.borderType = .bezelBorder
-        scroll.translatesAutoresizingMaskIntoConstraints = false
-        scroll.heightAnchor.constraint(equalToConstant: 110).isActive = true
-
-        let grid = NSGridView(views: [
-            [label("Имя владельца"), ownerName],
-            [label("Имя в Толке"), ownerTalkName],
-            [label("Вольт (путь)"), vaultRoot],
-            [label("Папка приватных записей"), privateDir],
-            [label("Хосты встреч (через запятую)"), workHosts],
-            [label("Приватные приложения (bundle id через запятую)"), privateApps],
-            [label("Окна приватности (по строке: день HH:mm-HH:mm, 1=вс … 7=сб)"), scroll],
+    private func ownerSection() -> NSView {
+        ownerTalkName.placeholderString = "как подписана твоя плитка в Толке"
+        return column([
+            group("Кто ведёт записи", rows: [
+                row("Имя владельца", ownerName),
+                row("Имя в Толке", ownerTalkName,
+                    note: "По нему транскрибатор узнаёт твою плитку и не путает тебя с собеседниками."),
+            ]),
         ])
-        grid.column(at: 0).xPlacement = .trailing
-        grid.rowAlignment = .firstBaseline
-        grid.row(at: 6).yPlacement = .top
-        grid.columnSpacing = 10
-        grid.rowSpacing = 10
+    }
 
+    private func pathsSection() -> NSView {
+        for field in [vaultRoot, rawSubdir, meetingsSubdir, privateDir] { field.delegate = self }
+        let dataDir = NSTextField(labelWithString: AppPaths.dataDir.path)
+        dataDir.textColor = .secondaryLabelColor
+        dataDir.lineBreakMode = .byTruncatingMiddle
+        dataDir.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let reveal = smallButton("Показать в Finder", #selector(revealDataDir))
+        reveal.setContentCompressionResistancePriority(.required, for: .horizontal)
+        return column([
+            group("Рабочие встречи", rows: [
+                row("Вольт", folderField(vaultRoot, status: vaultStatus, choose: #selector(chooseVault))),
+                row("Транскрипты", insideVault(rawSubdir, status: rawStatus)),
+                row("Заметки встреч", insideVault(meetingsSubdir, status: meetingsStatus)),
+            ]),
+            group("Приватные встречи", rows: [
+                row("Папка", folderField(privateDir, status: privateStatus, choose: #selector(choosePrivate)),
+                    note: "Вне вольта: в граф и рутины не попадает."),
+            ]),
+            group("Данные транскрибатора", rows: [
+                row("Каталог данных", hstack([dataDir, reveal])),
+            ]),
+        ])
+    }
+
+    private func recordingSection() -> NSView {
+        workHosts.placeholderString = "talk.example.com, meet.example.com"
+        return column([
+            group("Встречи", rows: [
+                row("Хосты встреч", workHosts,
+                    note: "Звонок в браузере на этих хостах — рабочая встреча; через запятую."),
+            ]),
+            group("Что сохранять", rows: [
+                row("", talkEnabled, note: "Кто в звонке и кто говорит — для имён в транскрипте. В приватной записи не работает."),
+                row("", keepAudio, note: "Нужно для перераспознавания и стенда качества; без этого аудио удаляется после встречи."),
+            ]),
+        ])
+    }
+
+    private func privacySection() -> NSView {
+        privateApps.placeholderString = "com.example.chat"
+        windowRows.orientation = .vertical
+        windowRows.alignment = .leading
+        windowRows.spacing = 6
+        let add = smallButton("Добавить окно", #selector(addWindowRow))
+        add.image = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)
+        add.imagePosition = .imageLeading
+        return column([
+            group("Что всегда приватно", rows: [
+                row("Приложения", privateApps, note: "Bundle id через запятую: запись из них уходит в приватную папку."),
+            ]),
+            group("Окна приватности", rows: [
+                row("", vstack([windowRows, add], spacing: 8),
+                    note: "Запись, начатая в это время, уходит в приватную папку. Толк и хосты встреч всегда рабочие."),
+            ]),
+        ])
+    }
+
+    private func agentSection() -> NSView {
+        agentCommand.placeholderString = "claude -p   или   codex exec"
+        contextDir.delegate = self
+        timeout.formatter = { let f = NumberFormatter(); f.minimum = 1; f.maximum = 3600; f.allowsFloats = false; return f }()
+        timeout.alignment = .right
+        timeout.translatesAutoresizingMaskIntoConstraints = false
+        timeout.widthAnchor.constraint(equalToConstant: 60).isActive = true
+        timeoutStepper.minValue = 10
+        timeoutStepper.maxValue = 3600
+        timeoutStepper.increment = 10
+        timeoutStepper.target = self
+        timeoutStepper.action = #selector(stepTimeout)
+        let seconds = NSTextField(labelWithString: "с")
+        seconds.textColor = .secondaryLabelColor
+        checkButton.target = self
+        checkButton.action = #selector(checkAgent)
+        checkButton.bezelStyle = .rounded
+        checkResult.font = .systemFont(ofSize: 11)
+        checkResult.textColor = .secondaryLabelColor
+        checkResult.preferredMaxLayoutWidth = 380
+        return column([
+            group("Свой агент", rows: [
+                row("Команда", agentCommand,
+                    note: "Вопрос с текстом встречи уходит команде на вход, ответ читается с её вывода. Пусто — агент выключен."),
+                row("", hstack([checkButton, checkResult])),
+            ]),
+            group("Ответы", rows: [
+                row("Контекст проектов", folderField(contextDir, status: contextStatus, choose: #selector(chooseContext)),
+                    note: "С переключателем «контекст проектов» агент запускается из этой папки и видит её файлы."),
+                row("Ждать ответа", hstack([timeout, timeoutStepper, seconds])),
+            ]),
+        ])
+    }
+
+    // MARK: - Layout helpers
+
+    /// A section: its groups top-down, then the save bar pinned to the bottom.
+    private func pane(_ content: NSView) -> NSView {
         let cancel = NSButton(title: "Отмена", target: self, action: #selector(cancelAction))
         cancel.keyEquivalent = "\u{1b}"
         let save = NSButton(title: "Сохранить", target: self, action: #selector(saveAction))
         save.keyEquivalent = "\r"
-        let buttons = NSStackView(views: [cancel, save])
-        buttons.spacing = 10
-
-        let stack = NSStackView(views: [grid, buttons])
-        stack.orientation = .vertical
-        stack.alignment = .trailing
-        stack.spacing = 16
-        stack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        let content = NSView()
-        content.addSubview(stack)
+        let bar = hstack([NSView(), cancel, save])
+        bar.setHuggingPriority(.defaultLow, for: .horizontal)
+        let root = NSView(frame: NSRect(origin: .zero, size: Self.size))
+        for v in [content, bar] {
+            v.translatesAutoresizingMaskIntoConstraints = false
+            root.addSubview(v)
+        }
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            stack.topAnchor.constraint(equalTo: content.topAnchor),
-            stack.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            content.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
+            content.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 22),
+            content.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -22),
+            bar.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 22),
+            bar.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -22),
+            bar.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -18),
+            content.bottomAnchor.constraint(lessThanOrEqualTo: bar.topAnchor, constant: -12),
+            root.widthAnchor.constraint(equalToConstant: Self.size.width),
+            root.heightAnchor.constraint(equalToConstant: Self.size.height),
         ])
-        window.contentView = content
+        return root
     }
 
-    private func label(_ text: String) -> NSTextField {
-        let l = NSTextField(labelWithString: text)
-        l.alignment = .right
+    private func column(_ groups: [NSView]) -> NSView {
+        let s = vstack(groups, spacing: 14)
+        for g in groups { g.widthAnchor.constraint(equalTo: s.widthAnchor).isActive = true }
+        return s
+    }
+
+    /// A caption over a rounded, lightly filled box of label/control rows — the macOS settings look.
+    private func group(_ title: String, rows: [[NSView]]) -> NSView {
+        let caption = NSTextField(labelWithString: title)
+        caption.font = .systemFont(ofSize: 12, weight: .medium)
+        caption.textColor = .secondaryLabelColor
+        let grid = NSGridView(views: rows)
+        grid.column(at: 0).xPlacement = .trailing
+        grid.column(at: 0).width = 150
+        grid.rowAlignment = .firstBaseline
+        grid.columnSpacing = 12
+        grid.rowSpacing = 10
+        for i in 0..<grid.numberOfRows where (grid.cell(atColumnIndex: 1, rowIndex: i).contentView as? NSStackView)?.orientation == .vertical {
+            grid.row(at: i).yPlacement = .top
+            grid.row(at: i).rowAlignment = .none
+        }
+        let box = NSBox()
+        box.boxType = .custom
+        box.cornerRadius = 10
+        box.borderWidth = 0.5
+        box.borderColor = .separatorColor
+        box.fillColor = .quaternarySystemFill
+        box.contentViewMargins = NSSize(width: 14, height: 12)
+        box.contentView = grid
+        let s = vstack([caption, box], spacing: 6)
+        box.widthAnchor.constraint(equalTo: s.widthAnchor).isActive = true
+        caption.leadingAnchor.constraint(equalTo: s.leadingAnchor, constant: 4).isActive = true
+        return s
+    }
+
+    private func row(_ title: String, _ control: NSView, note: String? = nil) -> [NSView] {
+        let label = NSTextField(labelWithString: title)
+        label.alignment = .right
+        label.textColor = .secondaryLabelColor
+        if let field = control as? NSTextField, field.isEditable {
+            field.translatesAutoresizingMaskIntoConstraints = false
+            field.widthAnchor.constraint(greaterThanOrEqualToConstant: 380).isActive = true
+        }
+        guard let note else { return [label, control] }
+        let hint = NSTextField(wrappingLabelWithString: note)
+        hint.font = .systemFont(ofSize: 11)
+        hint.textColor = .tertiaryLabelColor
+        hint.preferredMaxLayoutWidth = 400
+        return [label, vstack([control, hint], spacing: 3)]
+    }
+
+    /// A path field with «Выбрать…» and the line telling whether that folder exists.
+    private func folderField(_ field: NSTextField, status: NSTextField, choose: Selector) -> NSView {
+        field.translatesAutoresizingMaskIntoConstraints = false
+        field.widthAnchor.constraint(greaterThanOrEqualToConstant: 300).isActive = true
+        return vstack([hstack([field, smallButton("Выбрать…", choose)]), status], spacing: 3)
+    }
+
+    /// A folder inside the vault: the «Вольт /» prefix makes the relative path read as one.
+    private func insideVault(_ field: NSTextField, status: NSTextField) -> NSView {
+        let prefix = NSTextField(labelWithString: "Вольт /")
+        prefix.textColor = .tertiaryLabelColor
+        field.translatesAutoresizingMaskIntoConstraints = false
+        field.widthAnchor.constraint(greaterThanOrEqualToConstant: 320).isActive = true
+        return vstack([hstack([prefix, field]), status], spacing: 3)
+    }
+
+    private func vstack(_ views: [NSView], spacing: CGFloat) -> NSStackView {
+        let s = NSStackView(views: views)
+        s.orientation = .vertical
+        s.alignment = .leading
+        s.spacing = spacing
+        return s
+    }
+
+    private func hstack(_ views: [NSView]) -> NSStackView {
+        let s = NSStackView(views: views)
+        s.orientation = .horizontal
+        s.alignment = .firstBaseline
+        s.spacing = 8
+        return s
+    }
+
+    private func smallButton(_ title: String, _ action: Selector) -> NSButton {
+        let b = NSButton(title: title, target: self, action: action)
+        b.bezelStyle = .rounded
+        b.controlSize = .small
+        return b
+    }
+
+    private static func statusLabel() -> NSTextField {
+        let l = NSTextField(labelWithString: "")
+        l.font = .systemFont(ofSize: 11)
         return l
     }
+
+    // MARK: - Folder status
+
+    func controlTextDidChange(_ obj: Notification) { refreshStatuses() }
+
+    private func refreshStatuses() {
+        let vault = vaultRoot.stringValue
+        show(FolderStatus.check(FolderStatus.resolve(vault, inside: nil)), in: vaultStatus, missing: "папки нет")
+        show(FolderStatus.check(FolderStatus.resolve(rawSubdir.stringValue, inside: vault)), in: rawStatus,
+             missing: "папки нет — создастся при первой записи")
+        show(FolderStatus.check(FolderStatus.resolve(meetingsSubdir.stringValue, inside: vault)), in: meetingsStatus,
+             missing: "папки нет — создастся при первой записи")
+        show(FolderStatus.check(FolderStatus.resolve(privateDir.stringValue, inside: nil)), in: privateStatus,
+             missing: "папки нет — создастся при первой приватной записи")
+        let context = contextDir.stringValue
+        if context.trimmingCharacters(in: .whitespaces).isEmpty {
+            contextStatus.stringValue = "не задана — переключатель контекста в окне встречи будет недоступен"
+            contextStatus.textColor = .tertiaryLabelColor
+        } else {
+            show(FolderStatus.check(FolderStatus.resolve(context, inside: nil)), in: contextStatus, missing: "папки нет")
+        }
+    }
+
+    private func show(_ status: FolderStatus, in label: NSTextField, missing: String) {
+        switch status {
+        case .exists: label.stringValue = "✓ папка есть"; label.textColor = .systemGreen
+        case .missing: label.stringValue = "⚠︎ \(missing)"; label.textColor = .systemOrange
+        case .notFolder: label.stringValue = "✕ по этому пути файл, а не папка"; label.textColor = .systemRed
+        case .empty: label.stringValue = "✕ путь не задан"; label.textColor = .systemRed
+        }
+    }
+
+    // MARK: - Privacy windows
+
+    /// Пн … Вс on screen, the file keeps the worker's numbering (1 = вс … 7 = сб).
+    private static let weekdays: [(String, Int)] = [("Пн", 2), ("Вт", 3), ("Ср", 4), ("Чт", 5), ("Пт", 6), ("Сб", 7), ("Вс", 1)]
+
+    private static let hhmm: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(secondsFromGMT: 0)
+        f.dateFormat = "HH:mm"
+        return f
+    }()
+
+    private final class WindowRow: NSStackView {
+        let day = NSPopUpButton()
+        let from = NSDatePicker()
+        let to = NSDatePicker()
+        let remove = NSButton()
+    }
+
+    private func appendWindowRow(_ w: PrivateWindow) {
+        let r = WindowRow()
+        r.orientation = .horizontal
+        r.spacing = 8
+        r.alignment = .centerY
+        r.day.addItems(withTitles: Self.weekdays.map(\.0))
+        r.day.selectItem(at: Self.weekdays.firstIndex { $0.1 == w.weekday } ?? 0)
+        for (picker, value) in [(r.from, w.from), (r.to, w.to)] {
+            picker.datePickerStyle = .textFieldAndStepper
+            picker.datePickerElements = .hourMinute
+            picker.timeZone = TimeZone(secondsFromGMT: 0)
+            picker.locale = Locale(identifier: "ru_RU")
+            picker.dateValue = Self.hhmm.date(from: value) ?? Self.hhmm.date(from: "12:00")!
+        }
+        let dash = NSTextField(labelWithString: "—")
+        dash.textColor = .secondaryLabelColor
+        r.remove.bezelStyle = .inline
+        r.remove.isBordered = false
+        r.remove.image = NSImage(systemSymbolName: "minus.circle", accessibilityDescription: "Убрать окно")
+        r.remove.target = self
+        r.remove.action = #selector(removeWindowRow(_:))
+        for v in [r.day, r.from, dash, r.to, r.remove] { r.addArrangedSubview(v) }
+        windowRows.addArrangedSubview(r)
+    }
+
+    @objc private func addWindowRow() { appendWindowRow(PrivateWindow(weekday: 2, from: "12:00", to: "13:00")) }
+
+    @objc private func removeWindowRow(_ sender: NSButton) {
+        guard let r = sender.superview as? WindowRow else { return }
+        windowRows.removeArrangedSubview(r)
+        r.removeFromSuperview()
+    }
+
+    private func collectWindows() -> [PrivateWindow] {
+        windowRows.arrangedSubviews.compactMap { $0 as? WindowRow }.map { r in
+            PrivateWindow(weekday: Self.weekdays[max(r.day.indexOfSelectedItem, 0)].1,
+                          from: Self.hhmm.string(from: r.from.dateValue), to: Self.hhmm.string(from: r.to.dateValue))
+        }
+    }
+
+    // MARK: - Fill and save
 
     private func fill(_ s: Settings) {
         ownerName.stringValue = s.ownerName
         ownerTalkName.stringValue = s.ownerTalkName
         vaultRoot.stringValue = s.vaultRoot
+        rawSubdir.stringValue = s.rawSubdir
+        meetingsSubdir.stringValue = s.meetingsSubdir
         privateDir.stringValue = s.privateDir
         workHosts.stringValue = s.workHosts.joined(separator: ", ")
+        talkEnabled.state = s.talkEnabled ? .on : .off
+        keepAudio.state = s.keepAudio ? .on : .off
         privateApps.stringValue = s.privateApps.joined(separator: ", ")
-        windowsView.string = s.privateWindows.map(\.line).joined(separator: "\n")
+        for v in windowRows.arrangedSubviews { windowRows.removeArrangedSubview(v); v.removeFromSuperview() }
+        s.privateWindows.forEach(appendWindowRow)
+        agentCommand.stringValue = s.agent.command
+        contextDir.stringValue = s.agent.contextDir
+        timeout.integerValue = s.agent.timeoutS
+        timeoutStepper.integerValue = s.agent.timeoutS
+        checkResult.stringValue = ""
+        refreshStatuses()
+    }
+
+    private func collect() -> Settings {
+        func trimmed(_ f: NSTextField) -> String { f.stringValue.trimmingCharacters(in: .whitespaces) }
+        return Settings(ownerName: trimmed(ownerName), ownerTalkName: trimmed(ownerTalkName),
+                        vaultRoot: trimmed(vaultRoot), privateDir: trimmed(privateDir),
+                        workHosts: Settings.splitList(workHosts.stringValue),
+                        privateWindows: collectWindows(),
+                        privateApps: Settings.splitList(privateApps.stringValue),
+                        rawSubdir: trimmed(rawSubdir), meetingsSubdir: trimmed(meetingsSubdir),
+                        keepAudio: keepAudio.state == .on, talkEnabled: talkEnabled.state == .on,
+                        agent: AgentConfig(command: trimmed(agentCommand), contextDir: trimmed(contextDir),
+                                           timeoutS: timeout.integerValue))
     }
 
     @objc private func cancelAction() { close() }
 
     @objc private func saveAction() {
-        var windows: [PrivateWindow] = []
-        var rejected: [String] = []
-        for raw in windowsView.string.components(separatedBy: .newlines) {
-            let line = raw.trimmingCharacters(in: .whitespaces)
-            if line.isEmpty { continue }
-            if let w = PrivateWindow.parse(line: line) { windows.append(w) } else { rejected.append(line) }
-        }
-        if !rejected.isEmpty {
-            alert("Не разобраны окна приватности",
-                  "Формат строки: день HH:mm-HH:mm, день 1=вс … 7=сб, например «3 12:00-12:50».\n\n"
-                      + rejected.joined(separator: "\n"))
-            return
-        }
-        let s = Settings(ownerName: ownerName.stringValue.trimmingCharacters(in: .whitespaces),
-                         ownerTalkName: ownerTalkName.stringValue.trimmingCharacters(in: .whitespaces),
-                         vaultRoot: vaultRoot.stringValue.trimmingCharacters(in: .whitespaces),
-                         privateDir: privateDir.stringValue.trimmingCharacters(in: .whitespaces),
-                         workHosts: Settings.splitList(workHosts.stringValue),
-                         privateWindows: windows,
-                         privateApps: Settings.splitList(privateApps.stringValue))
-        let empty = s.validationErrors()
-        if !empty.isEmpty {
-            alert("Не заполнены обязательные поля", empty.joined(separator: "\n"))
+        let s = collect()
+        let errors = s.validationErrors()
+        if !errors.isEmpty {
+            alert("Не всё заполнено как надо", errors.joined(separator: "\n"))
             return
         }
         do {
@@ -151,11 +460,92 @@ final class SettingsWindow: NSWindowController {
         close()
     }
 
+    // MARK: - Actions
+
+    @objc private func chooseVault() { choose(into: vaultRoot) }
+    @objc private func choosePrivate() { choose(into: privateDir) }
+    @objc private func chooseContext() { choose(into: contextDir) }
+
+    private func choose(into field: NSTextField) {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.prompt = "Выбрать"
+        let current = FolderStatus.resolve(field.stringValue, inside: nil)
+        if FolderStatus.check(current) == .exists { panel.directoryURL = URL(fileURLWithPath: current) }
+        guard let window else { return }
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            field.stringValue = Self.abbreviatingHome(url.path)
+            self?.refreshStatuses()
+        }
+    }
+
+    /// `~/…` reads better and survives a renamed home folder.
+    static func abbreviatingHome(_ path: String) -> String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        if path == home { return "~" }
+        return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
+    }
+
+    @objc private func revealDataDir() {
+        NSWorkspace.shared.activateFileViewerSelecting([AppPaths.dataDir])
+    }
+
+    @objc private func stepTimeout() { timeout.integerValue = timeoutStepper.integerValue }
+
+    /// Runs the typed command once with a question that carries no meeting data.
+    @objc private func checkAgent() {
+        let command = agentCommand.stringValue
+        checkResult.textColor = .secondaryLabelColor
+        checkResult.stringValue = "Спрашиваю агента…"
+        checkButton.isEnabled = false
+        let started = Date()
+        AgentRunner.run(command: command, prompt: "Ответь одним словом: готов.", cwd: nil,
+                        timeout: TimeInterval(min(max(timeout.integerValue, 10), 120))) { [weak self] result in
+            guard let self else { return }
+            self.checkButton.isEnabled = true
+            let secs = Int(Date().timeIntervalSince(started).rounded())
+            switch result {
+            case .answer(let text):
+                self.checkResult.textColor = .systemGreen
+                self.checkResult.stringValue = "Ответил за \(secs) с: «\(String(text.prefix(80)))»"
+            case .failed(let code, let message):
+                self.checkResult.textColor = .systemRed
+                self.checkResult.stringValue = "Не вышло (код \(code)): \(message.isEmpty ? "без пояснений" : String(message.prefix(160)))"
+            case .timedOut:
+                self.checkResult.textColor = .systemRed
+                self.checkResult.stringValue = "Не ответил за \(secs) с"
+            case .notConfigured:
+                self.checkResult.textColor = .systemOrange
+                self.checkResult.stringValue = "Сначала впиши команду"
+            }
+        }
+    }
+
     private func alert(_ title: String, _ text: String) {
         let a = NSAlert()
         a.messageText = title
         a.informativeText = text
         a.alertStyle = .warning
         if let window { a.beginSheetModal(for: window) } else { a.runModal() }
+    }
+
+    // MARK: - Snapshot
+
+    /// For `--settings-test <dir>`: every section as `settings-<n>.png`, without screen recording.
+    func snapshots(to dir: URL) {
+        fill(SettingsStore.load())
+        window?.layoutIfNeeded()
+        for i in 0..<tabs.tabViewItems.count {
+            tabs.selectedTabViewItemIndex = i
+            guard let view = window?.contentView?.superview else { continue }
+            view.layoutSubtreeIfNeeded()
+            guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { continue }
+            view.cacheDisplay(in: view.bounds, to: rep)
+            try? rep.representation(using: .png, properties: [:])?
+                .write(to: dir.appendingPathComponent("settings-\(i + 1).png"))
+        }
     }
 }
