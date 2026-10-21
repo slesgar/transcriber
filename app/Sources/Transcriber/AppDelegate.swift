@@ -56,6 +56,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         log.info("app launched")
         PowerHold.resetAtLaunch()   // a crash mid-session could have left sleep disabled
+        signal(SIGPIPE, SIG_IGN)   // a child that closes its stdin early must not take the recorder down
+        // the owner's interactive shell takes seconds to report its PATH: ask it now, not when the
+        // first question to the agent is already waiting
+        DispatchQueue.global(qos: .utility).async { _ = ShellPath.discovered }
         _ = TalkInspector.ensureAccessibility()
         status.onToggle = { [weak self] in self?.toggle() }
         status.onOpenNote = { [weak self] in self?.openNote() }

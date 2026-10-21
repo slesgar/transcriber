@@ -31,11 +31,12 @@
 
 - `TranscriberCore/AppPaths.swift` — `dataDir`, `appConfig`, `sessions`, `workerConfig` (единственное место, знающее каталог данных).
 - `PrivacyRules.swift` — `PrivateWindow` (+ `parse(line:)`/`line`), `PrivacyRules` (`isPrivate`, `load(from:)` пишет умолчания в пустой файл), `TalkConfig.swift`, `ReconConfig.swift` — свои блоки того же `app-config.json`.
-- `Settings.swift` — `Settings`, `SettingsStore.load/save`, `settingYAML`, `settingPrivacy` (редактирует файлы, не разрушая комментарии и чужие ключи).
+- `Settings.swift` — `Settings` (владелец, вольт и его подпапки `raw_subdir`/`meetings_subdir`, приватная папка, хосты, приватность, `keep_audio`, `talk.enabled`, агент), `SettingsStore.load/save` (load ничего не пишет), `settingYAML` (строки и литералы, хвостовой `# комментарий` сохраняется), `settingAppConfig`/`settingPrivacy` (редактирует файлы, не разрушая комментарии и чужие ключи), `FolderStatus` (есть ли папка по пути, `~` и путь внутри вольта).
+- `Agent.swift` — `AgentConfig` (блок `agent` в `app-config.json`: `command`, `context_dir`, `timeout_s`; ключи читаются поодиночке), `AgentRunner.run` (команда через `$SHELL -lc`, вопрос на stdin без SIGPIPE, ответ из stdout, таймаут гасит всё дерево процессов — `ProcessTree`), `ShellPath` (PATH интерактивной оболочки владельца, спрашивается один раз при старте приложения, с дедлайном).
 - `SessionStore.swift` — `SessionDir` (`notePath`/`rawPath`/`status` из `state.json`), `SessionStore.create` (meta.json), `defaultRoot`; `LiveTranscript.swift` — текст, распознанный к этому моменту: Raw по `raw_path`, всё после заголовка `## Полный транскрипт` (тот же, что пишет `vault.render_raw`).
 - `MeetingDetector.swift` + `AudioProcesses.swift` — кто держит микрофон; `BrowserTabs.swift` — вкладка со звонком (`defaultMeetingHosts` + хосты из конфига), `TalkInspector.swift`/`TalkObserver.swift`/`AXDump.swift`/`AXRecon.swift` — AX-дерево Толка, `talk.jsonl`.
 - `TapCapture.swift` (UID агрегатного устройства = bundle id + `.agg`), `AudioDevices.swift`, `Downmixer.swift`, `PcmWriter.swift` — захват и запись звука; `PowerHold.swift` — не спать; `Obsidian.swift` — открыть заметку; `PromptPolicy.swift` — судьба карточки «Записать?»; `Log.swift`.
-- `Transcriber/AppDelegate.swift` — оркестрация (детектор, карточки, старт/стоп, AX-наблюдатели); `SessionController.swift` — одна запись; `StatusItem.swift` — меню (запись, приватная, заметка, «Настройки…», папка сессий, выход); `SettingsWindow.swift` — окно настроек; `PromptPanel.swift`, `FloatingButton.swift` (кружок записи: клик — окно текста, правый клик — меню действий), `TranscriptWindow.swift` (окно с текстом записи, перечитывает Raw раз в 2 с, панель «Открыть заметку / Остановить / Скрыть кнопку»); `main.swift` — `--record-test`, `--prompt-test`, `--transcript-test <каталог сессии>` (снимок окна текста).
+- `Transcriber/AppDelegate.swift` — оркестрация (детектор, карточки, старт/стоп, AX-наблюдатели); `SessionController.swift` — одна запись; `StatusItem.swift` — меню (запись, приватная, заметка, «Настройки…», папка сессий, выход); `SettingsWindow.swift` — окно настроек: разделы Владелец · Куда пишет · Запись · Приватность · Агент на панели сверху (`NSTabViewController`, стиль toolbar), статус папок, окна приватности строками, «Проверить» агента; `PromptPanel.swift`, `FloatingButton.swift` (кружок записи: клик — окно текста, правый клик — меню действий), `TranscriptWindow.swift` (окно с текстом записи, перечитывает Raw раз в 2 с, панель «Открыть заметку / Остановить / Скрыть кнопку»); `main.swift` — `--record-test`, `--prompt-test`, `--transcript-test <каталог сессии>` (снимок окна текста), `--settings-test <каталог>` (снимки разделов настроек `settings-<n>.png`; `TRANSCRIBER_DATA` — демо-каталог).
 
 ## Скрипты, установка, спайк
 
@@ -44,7 +45,7 @@
 ## Тесты
 
 - Воркер: `cd worker && uv run pytest -q --ignore=tests/test_real_models.py`; `conftest.py` — `FakeAsr`, `FakeEmbedder`, `make_session`, фикстуры `vault`, `private_dir`, автоподмена `DATA_DIR` на tmp. Темы: `test_config`, `test_firstrun`, `test_pipeline`, `test_talk`, `test_voices`, `test_owner`, `test_vault`, `test_cli`, `test_bench`, `test_bench_diar`, `test_bench_ref`, `test_judge`, `test_continuation`, `test_daemon_memory`, `test_echo`/`test_aec`, `test_quality`, `test_asr`, `test_blocks`, `test_vad`, `test_speakers`, `test_session`, `test_pcm`, `test_models` (загрузка моделей), `test_install_scripts` (префикс меток: `install.env`, предупреждение о чужом агенте, экранирование в шаблонах), `test_real_models` (живые модели, в обычный прогон не входит).
-- Приложение: `cd app && swift test` (swift-testing, XCTest недоступен). `Fixtures/talk-grid.txt` — AX-дамп сетки Толка с вымышленными именами.
+- Приложение: `cd app && swift test` (swift-testing, XCTest недоступен); настройки — `SettingsTests`, `SettingsSectionsTests`, агент — `AgentRunnerTests` (`cat`/`sleep` вместо агентов). `Fixtures/talk-grid.txt` — AX-дамп сетки Толка с вымышленными именами.
 
 ## Куда идти по задаче
 
@@ -53,6 +54,7 @@
 | Новый порог/настройка воркера | `config.py` + `config.example.yaml` + `test_config.py` |
 | Где лежат данные | `config.py` (`DATA_DIR`), `AppPaths.swift`, `scripts/*.sh`, README |
 | Первичная настройка / меню настроек | `firstrun.py`, `Settings.swift`, `SettingsWindow.swift`, `StatusItem.swift` |
+| Свой агент (команда, запуск, PATH) | `Agent.swift`, `SettingsWindow.swift` (раздел «Агент») |
 | Приватность | `PrivacyRules.swift`, `SessionController.swift` |
 | Детект встречи в браузере | `BrowserTabs.swift`, `AppDelegate.swift` |
 | Имена говорящих | `talk.py`, `voices.py`, `owner.py`, `speakers.py` |
