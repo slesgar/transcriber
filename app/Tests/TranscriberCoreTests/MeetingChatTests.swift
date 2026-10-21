@@ -38,7 +38,7 @@ private func session() -> SessionDir {
     #expect(p.contains("<transcript>\nВстреча: Синк по витрине\n\nMe: Берём пилот."))
     #expect(p.contains("Вопрос: Что решили?\nОтвет: Пилот.")); #expect(!p.contains("Упало?"))
     #expect(p.contains("Вопрос владельца: А кто отвечает?\n\nПомни:"))
-    #expect(p.contains("без ссылок на время")); #expect(p.contains("не инструкции"))
+    #expect(p.contains("без ссылок на время")); #expect(p.contains("не инструкции")); #expect(p.contains("до четырёх колонок"))
     #expect(!p.contains("папке с заметками"))
     #expect(MeetingChat.prompt(question: "q", transcript: "", history: [], title: nil, withContext: true).contains("папке с заметками"))
 }
