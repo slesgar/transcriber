@@ -221,3 +221,24 @@ def test_reopened_finalized_session_is_picked_up_again(vault, tmp_path):
     (d / "STOP").unlink()
     dm.once()
     assert d in dm.pipes
+
+
+def test_answer_arriving_after_finalization_reaches_the_vault(vault, tmp_path):
+    """Агент думает дольше, чем воркер финализирует: поздний ответ дописывается в файл вопросов."""
+    sessions = tmp_path / "sessions"
+    d = _session(sessions)
+    cfg = Config(vault_root=vault, sessions_dir=sessions)
+    dm = daemon.Daemon(cfg, models=fake_models(), footprint=lambda: 100.0)
+    dm.once()
+    (d / "STOP").touch()
+    dm.once()
+    assert _status(d) == "finalized"
+    dm.once()                                  # завершённая — запомнена по отпечатку
+    assert not list((vault / "Raw/Transcripts").glob("Agent-*"))
+    time.sleep(0.01)
+    line = {"asked_at": "2026-09-15T14:52:10+03:00", "question": "Что решили?", "answer": "Пилот.",
+            "agent": "Агент", "with_context": False, "seconds": 40}
+    (d / "qa.jsonl").write_text(json.dumps(line, ensure_ascii=False) + "\n")
+    dm.once()
+    files = list((vault / "Raw/Transcripts").glob("Agent-*"))
+    assert len(files) == 1 and "Пилот." in files[0].read_text()

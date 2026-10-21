@@ -64,21 +64,46 @@ public enum AgentResult: Equatable {
     case failed(code: Int32, message: String)
     case timedOut
     case notConfigured
+    case cancelled
+}
+
+/// A running question: `cancel()` stops the agent and everything it started.
+public final class AgentRun {
+    fileprivate let once: AgentRunner.Once
+    fileprivate var pid: pid_t = 0
+    private let lock = NSLock()
+
+    fileprivate init(once: AgentRunner.Once) { self.once = once }
+
+    fileprivate func started(_ pid: pid_t) {
+        lock.lock(); self.pid = pid; lock.unlock()
+    }
+
+    /// Finish first, then read the pid: a run that is just starting sees `isDone` after `started`
+    /// and stops itself, one already started is stopped here.
+    public func cancel() {
+        once.finish(.cancelled)
+        lock.lock(); let pid = self.pid; lock.unlock()
+        if pid > 0 { DispatchQueue.global().async { ProcessTree.terminate(pid) } }   // pgrep off the main thread
+    }
 }
 
 /// Runs the agent command through the owner's shell. The app is started by launchd with a bare
 /// PATH, so the PATH of an interactive shell is asked once (`ShellPath`) and handed to a login
 /// shell that runs the command — the same `claude` or `codex` the owner types in Terminal.
 public enum AgentRunner {
+    @discardableResult
     public static func run(command: String, prompt: String, cwd: URL?, timeout: TimeInterval,
-                           queue: DispatchQueue = .main, completion: @escaping (AgentResult) -> Void) {
+                           queue: DispatchQueue = .main, completion: @escaping (AgentResult) -> Void) -> AgentRun {
         let command = command.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !command.isEmpty else {
-            queue.async { completion(.notConfigured) }
-            return
-        }
         let once = Once(queue: queue, completion: completion)
+        let handle = AgentRun(once: once)
+        guard !command.isEmpty else {
+            once.finish(.notConfigured)
+            return handle
+        }
         DispatchQueue.global(qos: .userInitiated).async {
+            if once.isDone { return }   // cancelled before it started
             let process = Process()
             process.executableURL = URL(fileURLWithPath: ShellPath.shell)
             process.arguments = ["-lc", command]
@@ -97,6 +122,8 @@ public enum AgentRunner {
                 return
             }
             let pid = process.processIdentifier
+            handle.started(pid)
+            if once.isDone { ProcessTree.terminate(pid) }   // cancelled while it was starting
             DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
                 guard process.isRunning else { return }
                 once.finish(.timedOut)
@@ -131,10 +158,11 @@ public enum AgentRunner {
                 once.finish(.answer(out))
             }
         }
+        return handle
     }
 
-    /// The completion runs exactly once: a timeout and the process exit race each other.
-    private final class Once {
+    /// The completion runs exactly once: a timeout, a cancel and the process exit race each other.
+    final class Once {
         private let lock = NSLock()
         private var done = false
         private let queue: DispatchQueue
@@ -143,6 +171,11 @@ public enum AgentRunner {
         init(queue: DispatchQueue, completion: @escaping (AgentResult) -> Void) {
             self.queue = queue
             self.completion = completion
+        }
+
+        var isDone: Bool {
+            lock.lock(); defer { lock.unlock() }
+            return done
         }
 
         func finish(_ result: AgentResult) {
@@ -227,5 +260,46 @@ enum ProcessTree {
         p.waitUntilExit()
         let children = text.split(whereSeparator: \.isNewline).compactMap { pid_t($0) }
         return children.flatMap { [$0] + descendants(of: $0) }
+    }
+}
+
+/// Agents the app knows how to call in one-shot mode, found on the owner's PATH. The commands are
+/// the scheme, not an installation value: each runs the agent once, question on stdin, answer on
+/// stdout, read-only — an agent started inside a vault must not edit it. The transcript is other
+/// people's speech, so nothing it says may reach a tool that acts: Claude Code gets only the three
+/// reading tools, no MCP servers, no settings (no user or vault hooks, no allow rules) and refuses
+/// whatever is not pre-approved; Codex runs in its read-only sandbox.
+public struct AgentPreset: Equatable {
+    public let name: String
+    public let binary: String
+    public let command: String
+
+    public static let known: [AgentPreset] = [
+        AgentPreset(name: "Claude Code", binary: "claude",
+                    command: "claude -p --tools Read,Grep,Glob --setting-sources \"\" --strict-mcp-config --permission-mode dontAsk --no-session-persistence"),   // leak-ok: preset of a known agent (scheme), an owner may pick the same command
+        AgentPreset(name: "Codex", binary: "codex",
+                    command: "codex exec --skip-git-repo-check --ephemeral --sandbox read-only -"),
+    ]
+
+    /// Known agents whose binary is an executable somewhere on `path` (colon-separated).
+    public static func discover(path: String?) -> [AgentPreset] {
+        let dirs = (path ?? ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)
+        return known.filter { preset in
+            dirs.contains { FileManager.default.isExecutableFile(atPath: ($0 as NSString).appendingPathComponent(preset.binary)) }
+        }
+    }
+
+    /// The preset a saved command came from; nil — the owner's own command.
+    public static func matching(_ command: String) -> AgentPreset? {
+        let c = command.trimmingCharacters(in: .whitespaces)
+        return known.first { $0.command == c }
+    }
+
+    /// What to call the agent in the window and in the meeting file: the preset's name, else the
+    /// first word of the command.
+    public static func displayName(for command: String) -> String {
+        if let p = matching(command) { return p.name }
+        let first = command.trimmingCharacters(in: .whitespaces).split(separator: " ").first.map(String.init) ?? "агент"
+        return (first as NSString).lastPathComponent
     }
 }
