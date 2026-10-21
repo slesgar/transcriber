@@ -180,6 +180,27 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
     }
 
     private static let font = NSFont.systemFont(ofSize: 13)
+
+    /// The answers sheet is tinted with the accent colour so it reads as a separate layer over the
+    /// transcript; opaque, so the text underneath never shows through. Light and dark each get
+    /// their own mix.
+    static let sheetFill = NSColor(name: nil) { appearance in
+        let dark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        var base = NSColor.white, accent = NSColor.systemBlue
+        appearance.performAsCurrentDrawingAppearance {
+            base = (dark ? NSColor.windowBackgroundColor : NSColor.white).usingColorSpace(.sRGB) ?? .white
+            accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? .systemBlue
+        }
+        return base.blended(withFraction: dark ? 0.16 : 0.07, of: accent) ?? base
+    }
+    static let sheetBorder = NSColor(name: nil) { appearance in
+        var c = NSColor.separatorColor
+        appearance.performAsCurrentDrawingAppearance {
+            c = NSColor.controlAccentColor.withAlphaComponent(0.35)
+        }
+        return c
+    }
+
     private static let palette: [NSColor] = [.systemPurple, .systemTeal, .systemOrange, .systemPink,
                                              .systemIndigo, .systemBrown, .systemGreen]
 
@@ -512,8 +533,17 @@ final class TranscriptWindow: NSObject, NSWindowDelegate {
         sheet.boxType = .custom
         sheet.cornerRadius = 14
         sheet.borderWidth = 0.5
-        sheet.borderColor = .separatorColor
-        sheet.fillColor = .windowBackgroundColor
+        sheet.borderColor = Self.sheetBorder
+        sheet.fillColor = Self.sheetFill
+        // a soft shadow along the top edge lifts the sheet off the transcript under it
+        sheet.wantsLayer = true
+        sheet.shadow = {
+            let s = NSShadow()
+            s.shadowColor = NSColor.black.withAlphaComponent(0.18)
+            s.shadowBlurRadius = 10
+            s.shadowOffset = NSSize(width: 0, height: 2)
+            return s
+        }()
         sheet.contentViewMargins = .zero
         let grabber = NSBox()
         grabber.boxType = .custom
